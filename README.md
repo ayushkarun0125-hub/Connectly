@@ -1,4 +1,4 @@
-# CSCI 2020U Project Charter & Work Contract
+# CSCI 2020U Project Charter & Work Contract — Group 53
 
 ## 1. Project Overview
 
