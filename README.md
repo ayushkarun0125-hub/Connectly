@@ -1,193 +1,227 @@
-# 📡 Connectly — Real-Time Multi-Room Communication Platform (Group 53)
+# 📡 Connectly — Real-Time Multi-Room Communication Platform
 
-## 🏷️ Project Charter Snapshot
+> A distributed real-time system supporting multiple concurrent clients with synchronized shared state, collaborative tooling, and persistent data.
 
-- **Course:** CSCI 2020U
-- **Group:** 53
-- **Product Name:** Connectly
-- **Project Members:** Dhruv Thakar, Ayush K., Aaryan Kulkarni
+[![Course](https://img.shields.io/badge/Course-CSCI%202020U-blue?style=flat-square)](.)
+[![Group](https://img.shields.io/badge/Group-53-purple?style=flat-square)](.)
+[![Stack](https://img.shields.io/badge/Stack-Node.js%20%7C%20React%20%7C%20Socket.io-green?style=flat-square)](.)
+
+---
+
+## 🏷️ Project Charter
+
+| Field | Details |
+| :--- | :--- |
+| **Course** | CSCI 2020U |
+| **Group** | 53 |
+| **Product Name** | Connectly |
+| **Members** | Dhruv Thakar, Ayush K., Aaryan Kulkarni |
+
+---
 
 ## 🚀 Overview
 
-Connectly is a real-time, multi-room communication platform designed to support multiple concurrent clients with synchronized shared state.
+Connectly is a **real-time, multi-room communication platform** designed to handle multiple concurrent clients with synchronized shared state.
 
-Unlike a basic chat application, Connectly extends functionality into a distributed real-time system, enabling collaborative features, persistent data, and advanced user interaction layers.
+Unlike a basic chat application, Connectly is architected as a **distributed real-time system** — featuring a collaborative whiteboard, live user presence, persistent message history, and file sharing. Every design decision emphasizes multi-client consistency, event-driven communication, and scalable room-based architecture.
 
-## 🔥 Key Features (Level-Up)
+---
+
+## 🔥 Features
 
 ### 💬 Real-Time Multi-Room Chat
-- Join or create chat rooms dynamically
-- Instant message broadcasting using WebSockets
-- Supports multiple concurrent users across rooms
+- Dynamically join or create chat rooms
+- Instant message broadcasting via WebSockets
+- Supports many concurrent users across independent rooms
 
-### 🧠 Live Collaborative Whiteboard (Core Level-Up Feature)
-- Shared drawing canvas across all users in a room
-- Real-time synchronization of drawing events
-- Demonstrates multi-client state consistency
+### 🧠 Live Collaborative Whiteboard *(Core Level-Up Feature)*
+- Shared drawing canvas synchronized across all users in a room
+- Real-time drawing event propagation
+- Demonstrates true multi-client shared state consistency
 
-### 💾 Persistent Chat History (File I/O)
-- Messages stored using Node.js `fs` module (JSON)
-- Chat history loads when users join a room
-- Rooms maintain state across server restarts
+### 💾 Persistent Chat History *(File I/O)*
+- Messages written to disk using Node.js `fs` module (JSON format)
+- Chat history reloaded when users join a room
+- State persists across server restarts
 
 ### 👤 User Presence System
-- Tracks active users in each room
-- Displays:
-  - Online/offline status
-  - Typing indicators
-  - Real-time updates across all clients
+- Tracks active users per room in real-time
+- Displays online/offline status, typing indicators, and join/leave events
+- All presence updates broadcast instantly to every connected client
 
 ### 📁 File & Media Sharing
-- Upload and share images/files within rooms
-- Broadcast file metadata to all connected users
-- Stored locally using file-based persistence
+- Upload and share images/files within a room
+- File metadata broadcast to all connected users
+- Files stored locally with file-based persistence
 
-### 🔐 Private Messaging & Roles (Optional Enhancement)
+### 🔐 Private Messaging & Roles *(Optional Enhancement)*
 - Direct messaging between users
-- Role-based permissions (admin/moderator)
-- Moderation tools (kick/ban users)
+- Role-based permissions (admin / moderator)
+- Moderation tools: kick and ban users
+
+---
 
 ## 🧱 Tech Stack
 
 | Layer | Technology |
 | :--- | :--- |
-| Frontend | React + Vite + Tailwind CSS |
-| Backend | Node.js + Express |
-| Real-Time Communication | Socket.io (WebSockets) |
-| Persistence | Node.js `fs` module (JSON storage) |
-| Audio/UX Enhancements | Howler.js |
+| **Frontend** | React + Vite + Tailwind CSS |
+| **Backend** | Node.js + Express |
+| **Real-Time Communication** | Socket.io (WebSockets) |
+| **Persistence** | Node.js `fs` module (JSON storage) |
+| **Audio / UX Enhancements** | Howler.js |
+
+---
 
 ## ⚙️ System Architecture
 
-Connectly uses an event-driven architecture:
+Connectly uses an **event-driven architecture** built around Socket.io:
 
-- Clients communicate with the server via Socket.io
-- Server handles:
-  - Room management
-  - Message broadcasting
-  - State synchronization
-- File system stores:
-  - Chat history
-  - Room metadata
-- All updates are propagated in real-time to connected clients
+```
+Clients  ←──── WebSocket (Socket.io) ────→  Server
+                                               │
+                                  ┌────────────┼────────────┐
+                                  │            │            │
+                             Room Mgmt    Broadcast    State Sync
+                                  │
+                             File System
+                          (JSON — chat history,
+                            room metadata)
+```
+
+- Clients communicate with the server over persistent WebSocket connections
+- The server manages room state, routes messages, and synchronizes drawing events
+- File system provides lightweight persistence without a database dependency
+- All state mutations propagate in real-time to every connected client in the room
+
+---
 
 ## 🔄 Core Concepts Demonstrated
 
-This project demonstrates:
+| Concept | Implementation |
+| :--- | :--- |
+| Concurrent client handling | Multi-room Socket.io server |
+| Bidirectional communication | WebSocket event emitters / listeners |
+| Shared state synchronization | Whiteboard canvas + presence system |
+| Event-driven design | Socket.io event architecture |
+| File-based persistence (I/O) | Node.js `fs` module, JSON storage |
+| Scalable room architecture | Dynamic room creation and management |
 
-- Concurrent client handling
-- Real-time bidirectional communication
-- Shared state synchronization
-- Event-driven system design
-- File-based persistence (I/O)
-- Scalable room-based architecture
+---
 
 ## 📂 Project Structure
 
-```text
+```
 Connectly/
-├── client/               # React frontend
-│   ├── components/       # UI components
-│   ├── pages/            # Chat + whiteboard views
-│   └── services/         # Socket client logic
+├── client/                  # React frontend
+│   ├── components/          # Reusable UI components
+│   ├── pages/               # Chat view + Whiteboard view
+│   └── services/            # Socket.io client logic
 │
-├── server/               # Node.js backend
-│   ├── sockets/          # Socket.io event handlers
-│   ├── controllers/      # Chat + room logic
-│   ├── data/             # JSON storage (messages, rooms)
-│   └── utils/            # File I/O helpers
+├── server/                  # Node.js backend
+│   ├── sockets/             # Socket.io event handlers
+│   ├── controllers/         # Chat + room business logic
+│   ├── data/                # JSON storage (messages, rooms)
+│   └── utils/               # File I/O helpers
 │
 └── README.md
 ```
 
-## 🧪 How to Run Locally
+---
+
+## 🧪 Running Locally
 
 ### 1. Clone the repository
+
 ```bash
 git clone https://github.com/your-repo/connectly.git
 cd connectly
 ```
 
 ### 2. Install dependencies
-**Server**
+
 ```bash
+# Server
 cd server
 npm install
-```
 
-**Client**
-```bash
+# Client
 cd ../client
 npm install
 ```
 
 ### 3. Start the application
-**Start server**
+
+Open two terminal windows:
+
 ```bash
+# Terminal 1 — Start server
 cd server
 npm run dev
 ```
 
-**Start client**
 ```bash
-cd ../client
+# Terminal 2 — Start client
+cd client
 npm run dev
 ```
 
 ### 4. Open in browser
-`http://localhost:5173`
+
+```
+http://localhost:5173
+```
+
+---
 
 ## 📌 Future Improvements
 
-- WebRTC for voice/video chat
-- Database integration (MongoDB / Firebase)
-- Authentication system (JWT)
-- Cloud file storage (AWS S3 / Firebase Storage)
-- Scalable deployment (Docker + cloud hosting)
+- [ ] **WebRTC** — voice and video chat between users
+- [ ] **Database integration** — MongoDB or Firebase for scalable persistence
+- [ ] **Authentication** — JWT-based login and session management
+- [ ] **Cloud file storage** — AWS S3 or Firebase Storage
+- [ ] **Scalable deployment** — Docker containerization + cloud hosting
+
+---
 
 ## 👥 Team
 
-- Dhruv Thakar — Server Architecture, Persistence, Multi-client Handling
-- Ayush K. — Socket Networking, Documentation
-- Aaryan Kulkarni — Frontend UI/UX, Whiteboard, Interaction Features
+| Member | Role | Responsibilities |
+| :--- | :--- | :--- |
+| **Dhruv Thakar** | Server & Persistence Lead | Multi-threaded server architecture, file I/O persistence, multi-client handling |
+| **Ayush K.** | Networking & Documentation Lead | Socket.io networking, README and documentation |
+| **Aaryan Kulkarni** | Frontend & UX Lead | React UI, collaborative whiteboard, UX and sound effects |
+
+---
 
 ## 🤝 Team Work Contract
 
-- **Communication Channel:** Discord
-- **Meeting Schedule:** Every Tuesday after lecture
-- **Conflict Resolution:** If team members do not contribute to assigned tasks, we will contact the instructor immediately. All team members are also responsible to enable other members to execute their contributions (for example, pushing required code and updates).
+| Item | Agreement |
+| :--- | :--- |
+| **Communication** | Discord |
+| **Meeting Schedule** | Every Tuesday after lecture |
+| **Conflict Resolution** | If a member does not contribute to assigned tasks, the team will contact the instructor immediately. All members are responsible for enabling others to execute their work (e.g. pushing required code and updates on time). |
 
-## 3. Work Division & Contribution Report
+---
 
-*Note: The "Actual Contribution" column should be updated at the time of final submission. You may edit the "Task" column to reflect your own tasks.*
+## 📋 Work Division & Contribution Report
 
-| Task / Module | Assigned Member (Plan) | Actual Contribution (Final) |
+> **Note:** The *Actual Contribution* column must be updated at final submission.
+
+| Task / Module | Assigned Member | Actual Contribution (Final) |
 | :--- | :--- | :--- |
-| **Multi-threaded Server** | Dhruv Thakar | [Summary of work done] |
-| **Socket Networking** | Ayush K. | [Summary of work done] |
-| **GUI Implementation** | Aaryan Kulkarni | [Summary of work done] |
-| **Persistence (File I/O)** | Dhruv Thakar | [Summary of work done] |
-| **UX/Sound Effects** | Aaryan Kulkarni | [Summary of work done] |
-| **Documentation/README** | Ayush K. | [Summary of work done] |
+| **Multi-threaded Server** | Dhruv Thakar | *[To be completed at submission]* |
+| **Socket Networking** | Ayush K. | *[To be completed at submission]* |
+| **GUI Implementation** | Aaryan Kulkarni | *[To be completed at submission]* |
+| **Persistence (File I/O)** | Dhruv Thakar | *[To be completed at submission]* |
+| **UX / Sound Effects** | Aaryan Kulkarni | *[To be completed at submission]* |
+| **Documentation / README** | Ayush K. | *[To be completed at submission]* |
 
-## 📊 Contribution Statement
+---
 
-Final contribution status will be determined at submission based on actual work completed by each team member.
+## 📊 Final Contribution Status
 
-## 4. Final Contribution Status (Tag one at Final Submission)
+> Tag one at final submission. Graders will use the *Actual Contribution* column above to apply uneven grades if applicable.
 
-At the end of the project, the team must agree on one of the following tags:
-
-* **[ ] (1) EVEN CONTRIBUTION:** All members met expectations from the original charter.
-* **[ ] (2) UNEVEN CONTRIBUTION:** One or more members did not meet expectations.
-
-*Note: Graders will use the "Actual Contribution" column above to apply uneven grades if necessary.*
-
-## 💥 Why This README Works
-
-This version:
-
-- Clearly shows "level-up" complexity
-- Uses technical language profs look for
-- Emphasizes multi-client systems (key requirement)
-- Makes your project sound like a distributed system, not a chat app
+- [ ] **(1) EVEN CONTRIBUTION** — All members met expectations from the original charter.
+- [ ] **(2) UNEVEN CONTRIBUTION** — One or more members did not meet expectations.
