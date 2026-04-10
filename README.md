@@ -1,13 +1,45 @@
+<!-- Glass-style hero + animated assets render on github.com; paths are relative to repo root. -->
+
+<p align="center">
+  <img src="assets/github-readme/hero-glass.svg" width="92%" alt="Connectly — glassmorphism-style project banner with course and stack summary" />
+</p>
+
+<p align="center">
+  <img src="https://readme-typing-svg.demolab.com?font=Inter&weight=600&size=22&duration=3800&pause=900&color=38BDF8&center=true&vCenter=true&width=680&lines=Real-time+multi-room+collaboration;Socket.io+%2B+React+%2B+Express+%2B+SQLite;Chat+%C2%B7+Whiteboard+%C2%B7+Presence+%C2%B7+JWT+auth;CSCI+2020U+%C2%B7+Group+53" alt="Animated typing subtitle" />
+</p>
+
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=soft&color=0:0f172a,40:1e1b4b,100:0c4a6e&height=36&section=header&fontSize=1&animation=twinkling&stroke=38bdf8" width="92%" alt="Animated gradient divider" />
+</p>
+
+<p align="center">
+  <a href="."><img src="https://img.shields.io/badge/Course-CSCI%202020U-0ea5e9?style=for-the-badge" alt="Course badge" /></a>
+  <a href="."><img src="https://img.shields.io/badge/Group-53-6366f1?style=for-the-badge" alt="Group badge" /></a>
+  <a href="."><img src="https://img.shields.io/badge/Real--time-Socket.io-010101?style=for-the-badge&logo=socket.io&logoColor=white" alt="Socket.io badge" /></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=20232a" alt="React" />
+  <img src="https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/Node.js-Express-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node" />
+  <img src="https://img.shields.io/badge/Express-5-000000?style=for-the-badge&logo=express&logoColor=white" alt="Express" />
+  <img src="https://img.shields.io/badge/SQLite-data-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite" />
+  <img src="https://img.shields.io/badge/Tailwind-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/OWNER/REPO"><img src="https://img.shields.io/github/stars/OWNER/REPO?style=for-the-badge&logo=github&color=fbbf24&label=Stars" alt="GitHub stars" /></a>
+  <a href="https://github.com/OWNER/REPO/graphs/contributors"><img src="https://img.shields.io/github/contributors/OWNER/REPO?style=for-the-badge&logo=github&color=38bdf8&label=Contributors" alt="Contributors" /></a>
+  <a href="https://github.com/OWNER/REPO/commits"><img src="https://img.shields.io/github/last-commit/OWNER/REPO?style=for-the-badge&logo=git&logoColor=white&color=64748b&label=Last%20commit" alt="Last commit" /></a>
+</p>
+
+<p align="center"><sub>Replace every <code>OWNER/REPO</code> in this file with your GitHub user or org and repository name so stars, contributors, and last-commit badges resolve. Optional: add a <a href="https://hits.seeyoufarm.com">README hits</a> badge with your repo URL encoded in the query string.</sub></p>
+
 # Connectly — Real-Time Multi-Room Communication Platform
 
 > A distributed real-time system supporting multiple concurrent clients with synchronized shared state, collaborative tooling, and persistent data.
 
-[![Course](https://img.shields.io/badge/Course-CSCI%202020U-blue?style=flat-square)](.)
-[![Group](https://img.shields.io/badge/Group-53-purple?style=flat-square)](.)
-[![Stack](https://img.shields.io/badge/Stack-Node.js%20%7C%20React%20%7C%20Socket.io-green?style=flat-square)](.)
-
 ---
-
 ## Project Charter
 
 | Field | Details |
@@ -68,6 +100,33 @@ Beyond basic chat, it includes a **collaborative whiteboard**, **live presence**
 
 ---
 
+## Showcase *(GIF layout)*
+
+<p align="center">
+  <strong>Drop screen recordings into <code>docs/readme-gifs/</code> and swap the <code>src</code> below, or keep the animated glass placeholders.</strong>
+</p>
+
+<table align="center">
+  <tr>
+    <td width="50%" align="center">
+      <p><strong>Chat &amp; presence</strong></p>
+      <img src="assets/github-readme/panel-chat.svg" width="95%" alt="Animated placeholder — replace with chat-demo.gif" />
+      <p><sub>GIF: <code>docs/readme-gifs/chat-demo.gif</code></sub></p>
+    </td>
+    <td width="50%" align="center">
+      <p><strong>Whiteboard sync</strong></p>
+      <img src="assets/github-readme/panel-whiteboard.svg" width="95%" alt="Animated placeholder — replace with whiteboard-demo.gif" />
+      <p><sub>GIF: <code>docs/readme-gifs/whiteboard-demo.gif</code></sub></p>
+    </td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0f172a,100:1e3a8a&height=100&section=footer&text=Thanks%20for%20visiting%20%E2%80%94%20Connectly&fontSize=24&fontColor=e2e8f0&animation=twinkling&fontAlignY=32" width="100%" alt="Animated footer wave" />
+</p>
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -98,6 +157,8 @@ Browsers  ←—— Socket.io (WebSocket) ——→  Node server (Express + Sock
 
 ```
 repo root/
+├── assets/github-readme/    # README hero + animated SVG panels (glass theme)
+├── docs/readme-gifs/        # Optional demo GIFs (see folder README)
 ├── src/                     # React app (Vite)
 │   ├── components/          # UI + Connectly-specific components
 │   ├── pages/               # Routes (chat, whiteboard, landing, auth, …)
