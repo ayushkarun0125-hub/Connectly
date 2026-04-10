@@ -7,10 +7,9 @@ import SectionHeader from '../components/connectly/SectionHeader'
 import EmptyState from '../components/connectly/EmptyState'
 import { fetchUploadedFiles } from '../services/chatService'
 import { fetchRoomPins } from '../services/pinService'
+import { getServerBaseUrl } from '@/config/serverUrl'
 import { mockFiles } from '../mock/data'
 import Skeleton from '../components/ui/Skeleton'
-
-const API_BASE = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
 
 function formatSize(bytes) {
   if (bytes == null) return '—'
@@ -75,7 +74,7 @@ function FilesPage() {
       type: extFromName(f.name),
       uploadedAt: f.uploadedAt ? new Date(f.uploadedAt).toLocaleString() : '—',
       size: f.size,
-      href: f.url?.startsWith('/') ? `${API_BASE}${f.url}` : f.url,
+      href: f.url?.startsWith('/') ? `${getServerBaseUrl()}${f.url}` : f.url,
       source: 'server',
     }))
     const fromMock = mockFiles.map((f) => ({
@@ -115,7 +114,7 @@ function FilesPage() {
   const pinnedFromApi = roomPins.map((p) => ({
     id: `pin-${p.id}`,
     name: p.name,
-    href: p.url?.startsWith('/uploads') ? `${API_BASE}${p.url}` : p.url,
+    href: p.url?.startsWith('/uploads') ? `${getServerBaseUrl()}${p.url}` : p.url,
     room: 'room_general',
   }))
   const pinned =

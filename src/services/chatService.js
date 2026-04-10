@@ -1,8 +1,7 @@
+import { getServerBaseUrl } from '@/config/serverUrl'
 import { mockFiles, mockRooms, mockUsers } from '../mock/data'
 import { wait } from '../lib/utils'
 import { fetchRoomPins } from './pinService'
-
-const API_BASE = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
 
 export async function fetchDashboard() {
   await wait(400)
@@ -37,7 +36,7 @@ export async function fetchRoomData(roomId) {
     }
   let room = { ...shell, inviteCode: null }
   try {
-    const response = await fetch(`${API_BASE}/api/rooms/${encodeURIComponent(roomId)}`)
+    const response = await fetch(`${getServerBaseUrl()}/api/rooms/${encodeURIComponent(roomId)}`)
     if (response.ok) {
       const data = await response.json()
       room = {
@@ -74,7 +73,7 @@ export async function fetchFiles() {
 
 export async function fetchUploadedFiles() {
   try {
-    const response = await fetch(`${API_BASE}/api/uploads`)
+    const response = await fetch(`${getServerBaseUrl()}/api/uploads`)
     if (!response.ok) return []
     return response.json()
   } catch {
@@ -84,7 +83,7 @@ export async function fetchUploadedFiles() {
 
 export async function fetchBackendHealth() {
   try {
-    const response = await fetch(`${API_BASE}/health`)
+    const response = await fetch(`${getServerBaseUrl()}/health`)
     if (!response.ok) return { ok: false }
     return response.json()
   } catch {

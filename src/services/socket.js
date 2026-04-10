@@ -1,12 +1,19 @@
 import { io } from 'socket.io-client'
-
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
+import { getServerBaseUrl } from '@/config/serverUrl'
 
 let socketInstance = null
+let socketInstanceUrl = null
 
 export function getSocket() {
+  const url = getServerBaseUrl()
+  if (socketInstance && socketInstanceUrl !== url) {
+    socketInstance.disconnect()
+    socketInstance = null
+    socketInstanceUrl = null
+  }
   if (!socketInstance) {
-    socketInstance = io(SERVER_URL, {
+    socketInstanceUrl = url
+    socketInstance = io(url, {
       autoConnect: false,
       transports: ['websocket'],
     })

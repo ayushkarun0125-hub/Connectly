@@ -17,6 +17,7 @@ import {
 } from '../services/roomService'
 import { useAppStore } from '../store/useAppStore'
 import { useAuth } from '../contexts/useAuth'
+import { getServerBaseUrl } from '@/config/serverUrl'
 import ConnectlyPanel from '../components/connectly/ConnectlyPanel'
 import RoomListItem from '../components/connectly/RoomListItem'
 import ActionButton from '../components/connectly/ActionButton'
@@ -89,8 +90,6 @@ function shortenRoomId(id) {
 function roomSidebarLabel(id, roomLabels) {
   return roomLabels[id] || BUILTIN_ROOM_NAMES[id] || shortenRoomId(id)
 }
-
-const API_BASE = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
 
 function mapPins(rows) {
   return (rows || []).map((p) => ({
@@ -190,7 +189,7 @@ function ChatPage() {
 
   function pinnedHref(url) {
     if (!url) return '#'
-    return url.startsWith('/uploads') ? `${API_BASE}${url}` : url
+    return url.startsWith('/uploads') ? `${getServerBaseUrl()}${url}` : url
   }
 
   useEffect(() => {
@@ -236,7 +235,9 @@ function ChatPage() {
     const handleConnectError = (err) => {
       pushToast({
         title: 'Realtime connection failed',
-        description: err?.message || 'Start the server and set VITE_SERVER_URL to match its port.',
+        description:
+          err?.message ||
+          'Start the API on this machine and open the app from the same host (or set VITE_SERVER_URL).',
       })
     }
 
@@ -280,7 +281,7 @@ function ChatPage() {
     if (!socket.connected) {
       pushToast({
         title: 'Not connected',
-        description: 'Open the Connectly server terminal and confirm VITE_SERVER_URL matches its URL.',
+        description: 'Confirm the API is running and reachable (same LAN IP as this page, default port 3001).',
       })
       return
     }

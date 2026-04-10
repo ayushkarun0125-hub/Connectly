@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { getServerBaseUrl } from '@/config/serverUrl'
 import { AuthContext } from './auth-context'
-
-const API_BASE = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
 const TOKEN_KEY = 'connectly_jwt'
 
 function parseError(err, fallback) {
@@ -14,7 +13,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(Boolean(localStorage.getItem(TOKEN_KEY)))
 
   async function fetchMe(currentToken) {
-    const response = await fetch(`${API_BASE}/api/auth/me`, {
+    const response = await fetch(`${getServerBaseUrl()}/api/auth/me`, {
       headers: { Authorization: `Bearer ${currentToken}` },
     })
     if (!response.ok) throw new Error('Session expired')
@@ -35,7 +34,7 @@ export function AuthProvider({ children }) {
   }, [token])
 
   const login = useCallback(async (email, password) => {
-    const response = await fetch(`${API_BASE}/api/auth/login`, {
+    const response = await fetch(`${getServerBaseUrl()}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -49,7 +48,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const signup = useCallback(async ({ displayName, email, password }) => {
-    const response = await fetch(`${API_BASE}/api/auth/signup`, {
+    const response = await fetch(`${getServerBaseUrl()}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ displayName, email, password }),
@@ -65,7 +64,7 @@ export function AuthProvider({ children }) {
   const updateProfile = useCallback(async ({ displayName, bio }) => {
     const current = token || localStorage.getItem(TOKEN_KEY)
     if (!current) throw new Error('Not signed in')
-    const response = await fetch(`${API_BASE}/api/auth/profile`, {
+    const response = await fetch(`${getServerBaseUrl()}/api/auth/profile`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${current}` },
       body: JSON.stringify({ displayName, bio }),

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
+import { getServerBaseUrl } from '@/config/serverUrl'
 
 function authHeaders() {
   const t = localStorage.getItem('connectly_jwt')
@@ -7,7 +7,7 @@ function authHeaders() {
 
 export async function fetchRoomPins(roomId) {
   try {
-    const r = await fetch(`${API_BASE}/api/rooms/${encodeURIComponent(roomId)}/pins`)
+    const r = await fetch(`${getServerBaseUrl()}/api/rooms/${encodeURIComponent(roomId)}/pins`)
     if (!r.ok) return []
     const data = await r.json()
     return Array.isArray(data) ? data : []
@@ -17,7 +17,7 @@ export async function fetchRoomPins(roomId) {
 }
 
 export async function addRoomPin(roomId, { name, url, messageId, sender }) {
-  const r = await fetch(`${API_BASE}/api/rooms/${encodeURIComponent(roomId)}/pins`, {
+  const r = await fetch(`${getServerBaseUrl()}/api/rooms/${encodeURIComponent(roomId)}/pins`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ name, url, messageId: messageId || null, sender: sender || null }),
@@ -28,7 +28,7 @@ export async function addRoomPin(roomId, { name, url, messageId, sender }) {
 }
 
 export async function removeRoomPin(roomId, pinId) {
-  const r = await fetch(`${API_BASE}/api/rooms/${encodeURIComponent(roomId)}/pins/${encodeURIComponent(pinId)}`, {
+  const r = await fetch(`${getServerBaseUrl()}/api/rooms/${encodeURIComponent(roomId)}/pins/${encodeURIComponent(pinId)}`, {
     method: 'DELETE',
     headers: authHeaders(),
   })

@@ -1,7 +1,6 @@
 import { FileText, Link2, Pin } from 'lucide-react'
+import { getServerBaseUrl } from '@/config/serverUrl'
 import { cn } from '../../lib/utils'
-
-const API_BASE = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
 
 function ChatMessageItem({ message, selfUserId, compact, onPinAttachment }) {
   const mine = message.userId === selfUserId
@@ -25,7 +24,7 @@ function ChatMessageItem({ message, selfUserId, compact, onPinAttachment }) {
       }
     }
     if (message.type === 'file') {
-      const href = message.url?.startsWith('/uploads') ? `${API_BASE}${message.url}` : message.url
+      const href = message.url?.startsWith('/uploads') ? `${getServerBaseUrl()}${message.url}` : message.url
       return {
         name: message.filename || message.content || 'Attached file',
         url: href || '#',
@@ -51,7 +50,7 @@ function ChatMessageItem({ message, selfUserId, compact, onPinAttachment }) {
       )
     }
     if (message.type === 'file') {
-      const href = message.url?.startsWith('/uploads') ? `${API_BASE}${message.url}` : message.url
+      const href = message.url?.startsWith('/uploads') ? `${getServerBaseUrl()}${message.url}` : message.url
       return (
         <a
           href={href || '#'}

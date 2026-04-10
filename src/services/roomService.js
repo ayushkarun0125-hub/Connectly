@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
+import { getServerBaseUrl } from '@/config/serverUrl'
 
 const ROOM_LABELS_KEY = 'connectly_room_labels'
 
@@ -24,7 +24,7 @@ export function persistRoomLabelToStorage(roomId, name) {
 }
 
 export async function createRoomApi(name) {
-  const response = await fetch(`${API_BASE}/api/rooms`, {
+  const response = await fetch(`${getServerBaseUrl()}/api/rooms`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),
@@ -40,14 +40,14 @@ export async function resolveInviteCodeApi(code) {
   const trimmed = String(code || '').trim()
   if (!trimmed) return null
   const response = await fetch(
-    `${API_BASE}/api/rooms/resolve/${encodeURIComponent(trimmed)}`,
+    `${getServerBaseUrl()}/api/rooms/resolve/${encodeURIComponent(trimmed)}`,
   )
   if (!response.ok) return null
   return response.json()
 }
 
 export async function updateRoomNameApi(roomId, name) {
-  const response = await fetch(`${API_BASE}/api/rooms/${encodeURIComponent(roomId)}`, {
+  const response = await fetch(`${getServerBaseUrl()}/api/rooms/${encodeURIComponent(roomId)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),

@@ -26,7 +26,7 @@ function CreateRoomModal({ open, onClose, onCreated }) {
     } catch {
       pushToast({
         title: 'Could not create room',
-        description: 'Start the API server and confirm VITE_SERVER_URL matches its port.',
+        description: 'Start the API on the host machine (same address as this site; default API port 3001).',
       })
     } finally {
       setBusy(false)

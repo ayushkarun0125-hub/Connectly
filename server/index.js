@@ -7,6 +7,7 @@ import net from 'net'
 import path from 'path'
 import fs from 'fs/promises'
 import crypto from 'node:crypto'
+import os from 'node:os'
 import { Server } from 'socket.io'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
@@ -27,7 +28,53 @@ const port = Number(process.env.PORT || 3001)
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173'
 const jwtSecret = process.env.JWT_SECRET || 'dev_jwt_secret_change_me'
 
-app.use(cors({ origin: clientUrl }))
+const extraCorsOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+
+function isPrivateLanHostname(hostname) {
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return true
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true
+  return /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)
+}
+
+/** Allow Vite (5173), preview (4173), etc. on localhost + RFC1918 when not in production. */
+function isAllowedLanDevOrigin(origin) {
+  try {
+    const u = new URL(origin)
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false
+    if (!isPrivateLanHostname(u.hostname)) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
+const strictCors = process.env.NODE_ENV === 'production' && process.env.LAN_DEV !== '1'
+
+function corsOriginCallback(origin, callback) {
+  if (!origin) {
+    callback(null, true)
+    return
+  }
+  if (origin === clientUrl) {
+    callback(null, true)
+    return
+  }
+  if (extraCorsOrigins.includes(origin)) {
+    callback(null, true)
+    return
+  }
+  if (!strictCors && isAllowedLanDevOrigin(origin)) {
+    callback(null, true)
+    return
+  }
+  callback(null, false)
+}
+
+app.use(cors({ origin: corsOriginCallback }))
 app.use(express.json({ limit: '8mb' }))
 app.use('/uploads', express.static(path.resolve('data', 'uploads')))
 
@@ -73,7 +120,7 @@ async function getAuthUser(req) {
 
 const io = new Server(server, {
   cors: {
-    origin: clientUrl,
+    origin: corsOriginCallback,
     methods: ['GET', 'POST'],
   },
 })
@@ -401,6 +448,26 @@ app.get('/api/uploads', async (_req, res) => {
   }
 })
 
-server.listen(openPort, () => {
-  console.log(`Connectly server listening on http://localhost:${openPort}`)
+function listLanIpv4() {
+  const addrs = []
+  const ifs = os.networkInterfaces()
+  for (const name of Object.keys(ifs)) {
+    for (const net of ifs[name] || []) {
+      const fam = net.family
+      const isV4 = fam === 'IPv4' || fam === 4
+      if (isV4 && !net.internal) addrs.push(net.address)
+    }
+  }
+  return addrs
+}
+
+server.listen(openPort, '0.0.0.0', () => {
+  console.log(`Connectly server listening on http://localhost:${openPort} (all interfaces)`)
+  const lan = listLanIpv4()
+  if (lan.length) {
+    console.log('Other devices on your Wi‑Fi/LAN can use:')
+    for (const ip of lan) {
+      console.log(`  http://${ip}:${openPort}`)
+    }
+  }
 })
