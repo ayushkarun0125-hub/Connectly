@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="236" viewBox="0 0 420 236" fill="none">
+  <defs>
+    <linearGradient id="pw-bg" x1="420" y1="0" x2="0" y2="236">
+      <stop stop-color="#0f172a"/><stop offset="1" stop-color="#312e81"/>
+    </linearGradient>
+  </defs>
+  <rect width="420" height="236" rx="16" fill="url(#pw-bg)"/>
+  <rect x="12" y="12" width="396" height="212" rx="12" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.12)"/>
+  <text x="210" y="100" text-anchor="middle" fill="rgba(248,250,252,0.9)" font-family="system-ui,sans-serif" font-size="16" font-weight="600">Whiteboard sync</text>
+  <text x="210" y="128" text-anchor="middle" fill="rgba(148,163,184,0.95)" font-family="system-ui,sans-serif" font-size="12">Replace with docs/readme-gifs/whiteboard-demo.gif</text>
+  <circle cx="210" cy="168" r="24" stroke="rgba(129,140,248,0.6)" stroke-width="2" fill="none">
+    <animate attributeName="r" values="20;28;20" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/>
+  </circle>
+</svg>

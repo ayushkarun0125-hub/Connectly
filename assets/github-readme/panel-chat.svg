@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="236" viewBox="0 0 420 236" fill="none">
+  <defs>
+    <linearGradient id="pc-bg" x1="0" y1="0" x2="420" y2="236">
+      <stop stop-color="#0f172a"/><stop offset="1" stop-color="#1e293b"/>
+    </linearGradient>
+  </defs>
+  <rect width="420" height="236" rx="16" fill="url(#pc-bg)"/>
+  <rect x="12" y="12" width="396" height="212" rx="12" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.12)"/>
+  <text x="210" y="100" text-anchor="middle" fill="rgba(248,250,252,0.9)" font-family="system-ui,sans-serif" font-size="16" font-weight="600">Chat &amp; presence</text>
+  <text x="210" y="128" text-anchor="middle" fill="rgba(148,163,184,0.95)" font-family="system-ui,sans-serif" font-size="12">Replace with docs/readme-gifs/chat-demo.gif</text>
+  <rect x="110" y="152" width="200" height="4" rx="2" fill="rgba(56,189,248,0.4)">
+    <animate attributeName="opacity" values="0.35;0.9;0.35" dur="1.8s" repeatCount="indefinite"/>
+  </rect>
+</svg>
