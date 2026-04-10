@@ -1,22 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useUser } from '@clerk/react'
+import { Link2, MessageSquare, Pencil } from 'lucide-react'
 import MessageFeed from '../components/MessageFeed'
 import MessageInput from '../components/MessageInput'
 import TypingIndicator from '../components/TypingIndicator'
 import UserPresencePanel from '../components/UserPresencePanel'
-import Card from '../components/ui/Card'
+import CreateRoomModal from '../components/CreateRoomModal'
+import Modal from '../components/ui/Modal'
 import { connectSocket, disconnectSocket } from '../services/socket'
 import { fetchRoomData } from '../services/chatService'
+import { addRoomPin, fetchRoomPins, removeRoomPin } from '../services/pinService'
 import {
   persistRoomLabelToStorage,
   readRoomLabelsFromStorage,
   updateRoomNameApi,
 } from '../services/roomService'
-import CreateRoomModal from '../components/CreateRoomModal'
-import Modal from '../components/ui/Modal'
-import Button from '../components/ui/Button'
 import { useAppStore } from '../store/useAppStore'
+import { useAuth } from '../contexts/useAuth'
+import ConnectlyPanel from '../components/connectly/ConnectlyPanel'
+import RoomListItem from '../components/connectly/RoomListItem'
+import ActionButton from '../components/connectly/ActionButton'
+import SectionHeader from '../components/connectly/SectionHeader'
+import EmptyState from '../components/connectly/EmptyState'
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -34,7 +39,6 @@ function optimisticId() {
   return globalThis.crypto?.randomUUID?.() ?? `opt_${Date.now()}_${Math.random().toString(16).slice(2)}`
 }
 
-/** Replace one matching optimistic row with the server message, or append if none. */
 function mergeInboundMessage(prev, message) {
   const idx = prev.findIndex(
     (m) =>
@@ -49,6 +53,11 @@ function mergeInboundMessage(prev, message) {
 }
 
 const DEFAULT_ROOM_IDS = ['room_general', 'room_design', 'room_backend']
+const BUILTIN_ROOM_NAMES = {
+  room_general: 'General',
+  room_design: 'Design',
+  room_backend: 'Backend',
+}
 const RECENT_ROOMS_KEY = 'connectly_recent_room_ids'
 
 function readRecentRoomIds() {
@@ -77,11 +86,29 @@ function shortenRoomId(id) {
   return id.replace(/^room_/, '') || id
 }
 
+function roomSidebarLabel(id, roomLabels) {
+  return roomLabels[id] || BUILTIN_ROOM_NAMES[id] || shortenRoomId(id)
+}
+
+const API_BASE = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
+
+function mapPins(rows) {
+  return (rows || []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    url: p.url,
+    sender: p.sender || '',
+    messageId: p.messageId,
+    pinnedAt: p.pinnedAt,
+  }))
+}
+
 function ChatPage() {
   const pushToast = useAppStore((state) => state.pushToast)
   const navigate = useNavigate()
   const location = useLocation()
-  const { user } = useUser()
+  const { user } = useAuth()
+  const role = user?.role ?? 'user'
   const { roomId = 'room_general' } = useParams()
   const [messages, setMessages] = useState([])
   const [users, setUsers] = useState([])
@@ -100,12 +127,7 @@ function ChatPage() {
   const [renameDraft, setRenameDraft] = useState('')
   const [renameBusy, setRenameBusy] = useState(false)
   const [roomLabels, setRoomLabels] = useState(readRoomLabelsFromStorage)
-  const username =
-    user?.fullName ||
-    user?.firstName ||
-    user?.username ||
-    user?.primaryEmailAddress?.emailAddress ||
-    'User'
+  const username = user?.displayName || user?.email || 'User'
 
   const typingNames = useMemo(() => Object.values(typingUsers), [typingUsers])
 
@@ -120,6 +142,8 @@ function ChatPage() {
     if (roomId && !merged.includes(roomId)) return [roomId, ...merged]
     return merged
   }, [recentRoomIds, roomId])
+
+  const headerTitle = currentRoom?.name || BUILTIN_ROOM_NAMES[roomId] || roomSidebarLabel(roomId, roomLabels)
 
   useEffect(() => {
     rememberRoomVisit(roomId)
@@ -136,11 +160,44 @@ function ChatPage() {
     })
   }, [roomId])
 
+  async function refreshPins() {
+    const rows = await fetchRoomPins(roomId)
+    setPinnedFiles(mapPins(rows))
+  }
+
+  async function handlePinAttachment({ name, url, messageId, sender }) {
+    try {
+      await addRoomPin(roomId, { name, url, messageId, sender })
+      await refreshPins()
+      pushToast({ title: 'Pinned', description: `${name} is pinned for this room.` })
+    } catch (err) {
+      pushToast({
+        title: 'Could not pin',
+        description: err?.message || 'Sign in and try again.',
+      })
+    }
+  }
+
+  async function handleUnpin(pinId) {
+    try {
+      await removeRoomPin(roomId, pinId)
+      await refreshPins()
+      pushToast({ title: 'Unpinned' })
+    } catch (err) {
+      pushToast({ title: 'Remove failed', description: err?.message || 'Try again.' })
+    }
+  }
+
+  function pinnedHref(url) {
+    if (!url) return '#'
+    return url.startsWith('/uploads') ? `${API_BASE}${url}` : url
+  }
+
   useEffect(() => {
     const socket = connectSocket()
 
     const handleConnect = () => {
-      setSocketId(socket.id)
+      setSocketId(socket.id || '')
       socket.emit('join-room', { roomId, username })
     }
 
@@ -151,14 +208,14 @@ function ChatPage() {
       setMessages((prev) => mergeInboundMessage(prev, message))
     }
     const handleRoomUsers = (roomUsers) => setUsers(roomUsers)
-    const handleUserJoined = (user) => {
+    const handleUserJoined = (u) => {
       setUsers((prev) => {
-        if (prev.some((item) => item.userId === user.userId)) return prev
-        return [...prev, user]
+        if (prev.some((item) => item.userId === u.userId)) return prev
+        return [...prev, u]
       })
     }
     const handleUserLeft = ({ userId }) => {
-      setUsers((prev) => prev.filter((user) => user.userId !== userId))
+      setUsers((prev) => prev.filter((u) => u.userId !== userId))
       setTypingUsers((prev) => {
         const copy = { ...prev }
         delete copy[userId]
@@ -357,110 +414,158 @@ function ChatPage() {
       ? `${window.location.origin}/app/rooms/${encodeURIComponent(roomId)}`
       : ''
 
+  const showTechSession = role === 'admin' || role === 'moderator'
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[240px_1fr_280px]">
-      <Card>
-        <h2 className="mb-3 font-semibold">Rooms</h2>
-        <div className="mb-3 flex flex-col gap-2">
-          <Button className="w-full text-sm" onClick={() => setCreateModalOpen(true)}>
-            New room
-          </Button>
-          <Link
-            to="/app/rooms/join"
-            className="block rounded-xl border border-slate-700 py-2 text-center text-sm hover:bg-slate-900"
-          >
-            Join with code
-          </Link>
-        </div>
-        <div className="space-y-2 text-sm">
-          {sidebarRoomIds.map((id) => (
+    <div className="flex min-h-0 flex-1 flex-col gap-4 lg:h-[calc(100dvh-6.5rem)] lg:flex-row lg:gap-5">
+      <ConnectlyPanel className="flex max-h-[40vh] flex-col lg:max-h-none lg:w-[260px] lg:shrink-0" noPadding>
+        <div className="border-b border-white/[0.06] p-5 pb-4">
+          <SectionHeader title="Rooms" />
+          <div className="mt-3 flex flex-col gap-2">
+            <ActionButton variant="primary" size="md" className="w-full" onClick={() => setCreateModalOpen(true)}>
+              New room
+            </ActionButton>
             <Link
+              to="/app/rooms/join"
+              className="flex w-full items-center justify-center rounded-xl border border-white/[0.12] bg-white/[0.04] py-2.5 text-sm font-semibold text-slate-200 transition hover:border-white/[0.18] hover:bg-white/[0.08]"
+            >
+              Join with code
+            </Link>
+          </div>
+        </div>
+        <nav className="connectly-scroll flex-1 space-y-1 overflow-y-auto p-3">
+          {sidebarRoomIds.map((id) => (
+            <RoomListItem
               key={id}
               to={`/app/rooms/${encodeURIComponent(id)}`}
-              className={`block rounded-lg px-3 py-2 break-all ${roomId === id ? 'bg-blue-600/20 text-blue-300' : 'hover:bg-slate-800'}`}
-            >
-              {DEFAULT_ROOM_IDS.includes(id) ? id : roomLabels[id] || shortenRoomId(id)}
-            </Link>
+              label={roomSidebarLabel(id, roomLabels)}
+              active={roomId === id}
+            />
           ))}
-        </div>
-      </Card>
+        </nav>
+      </ConnectlyPanel>
 
-      <Card>
-        <header className="mb-3 flex flex-wrap items-center gap-2">
-          <div className="mr-auto flex min-w-0 flex-wrap items-center gap-2">
-            <h1 className="truncate text-lg font-semibold">{currentRoom?.name || roomId}</h1>
-            <Button
-              variant="ghost"
-              className="shrink-0 px-2 py-1 text-xs"
-              onClick={() => {
-                setRenameDraft(currentRoom?.name || roomId)
-                setRenameModalOpen(true)
-              }}
-            >
-              Rename
-            </Button>
-          </div>
-          <span className="text-xs text-slate-400">Socket: {socketId || '...'}</span>
-          <Link to={`/app/rooms/${encodeURIComponent(roomId)}/whiteboard`} className="rounded-lg border border-slate-700 px-3 py-1 text-sm">Whiteboard</Link>
-          <Button variant="ghost" onClick={() => setUploadOpen(true)}>Attach</Button>
-        </header>
-        {currentRoom?.inviteCode && (
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs">
-            <span className="text-slate-400">Invite code</span>
-            <span className="font-mono font-semibold tracking-wider text-slate-100">{currentRoom.inviteCode}</span>
-            <Button
-              variant="ghost"
-              className="ml-auto shrink-0 px-2 py-1 text-xs"
-              onClick={() => copyInvite(currentRoom.inviteCode, 'Invite code copied.')}
-            >
-              Copy code
-            </Button>
-            <Button
-              variant="ghost"
-              className="shrink-0 px-2 py-1 text-xs"
-              onClick={() => copyInvite(inviteLink, 'Room link copied.')}
-            >
-              Copy link
-            </Button>
-          </div>
-        )}
-
-        <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
-          {!messages.length && (
-            <div className="rounded-xl border border-dashed border-slate-700 p-6 text-center text-sm text-slate-400">
-              No messages yet. Start the conversation.
+      <ConnectlyPanel className="flex min-h-[320px] min-w-0 flex-1 flex-col lg:min-h-0" noPadding>
+        <header className="shrink-0 border-b border-white/[0.06] px-5 py-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-semibold tracking-tight text-white md:text-xl">{headerTitle}</h1>
+              {showTechSession && socketId ? (
+                <details className="mt-1 text-[11px] text-slate-500">
+                  <summary className="cursor-pointer select-none hover:text-slate-400">Session details</summary>
+                  <code className="mt-1 block max-w-full break-all font-mono text-[10px] text-slate-600">
+                    {socketId}
+                  </code>
+                </details>
+              ) : null}
             </div>
-          )}
-          <MessageFeed messages={messages} selfUserId={socketId} />
-        </div>
-        <TypingIndicator usernames={typingNames} />
-        <MessageInput
-          value={messageInput}
-          onChange={setMessageInput}
-          onSubmit={sendMessage}
-          onTyping={handleTyping}
-          onChooseLocalFile={(file) => {
-            setSelectedFile(file)
-            setUploadOpen(true)
-          }}
-          onChooseDriveLink={() => setDriveOpen(true)}
-        />
-      </Card>
-
-      <div className="space-y-4">
-        <UserPresencePanel users={users} />
-        <Card>
-          <h2 className="mb-3 font-semibold">Pinned Files</h2>
-          <div className="space-y-2">
-            {pinnedFiles.length === 0 && <p className="text-sm text-slate-400">No pinned files yet.</p>}
-            {pinnedFiles.map((file) => (
-              <div key={file.id} className="rounded-lg border border-slate-800 p-2 text-sm">
-                <p>{file.name}</p>
-                <p className="text-xs text-slate-400">{file.sender}</p>
-              </div>
-            ))}
+            <div className="flex flex-wrap items-center gap-2">
+              <ActionButton
+                variant="ghost"
+                size="sm"
+                className="!rounded-full"
+                onClick={() => {
+                  setRenameDraft(currentRoom?.name || headerTitle)
+                  setRenameModalOpen(true)
+                }}
+              >
+                Rename
+              </ActionButton>
+              <Link
+                to={`/app/rooms/${encodeURIComponent(roomId)}/whiteboard`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-blue-500/30 hover:bg-blue-500/10 hover:text-blue-100"
+              >
+                <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
+                Whiteboard
+              </Link>
+              <ActionButton variant="secondary" size="sm" className="!rounded-full" onClick={() => setUploadOpen(true)}>
+                Attach
+              </ActionButton>
+            </div>
           </div>
-        </Card>
+          {currentRoom?.inviteCode ? (
+            <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-xs">
+              <span className="text-slate-500">Invite</span>
+              <span className="font-mono font-semibold tracking-wider text-slate-100">{currentRoom.inviteCode}</span>
+              <ActionButton variant="ghost" size="sm" onClick={() => copyInvite(currentRoom.inviteCode, 'Invite code copied.')}>
+                Copy code
+              </ActionButton>
+              <ActionButton variant="ghost" size="sm" onClick={() => copyInvite(inviteLink, 'Room link copied.')}>
+                Copy link
+              </ActionButton>
+            </div>
+          ) : null}
+        </header>
+
+        <div className="connectly-scroll mx-3 mb-1 flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200/80 bg-slate-100/50 px-2 py-3 dark:border-white/[0.06] dark:bg-[#07111f]/50 md:mx-5">
+          {!messages.length ? (
+            <EmptyState
+              icon={MessageSquare}
+              title="No messages yet"
+              description="Say hello and kick off the conversation. Messages sync in real time for everyone in the room."
+              className="my-auto border-slate-200/60 bg-white/50 dark:border-white/[0.06] dark:bg-white/[0.02]"
+            />
+          ) : (
+            <MessageFeed
+              messages={messages}
+              selfUserId={socketId}
+              onPinAttachment={handlePinAttachment}
+            />
+          )}
+        </div>
+        <div className="shrink-0 border-t border-slate-200/80 px-5 py-4 dark:border-white/[0.06]">
+          <TypingIndicator usernames={typingNames} />
+          <MessageInput
+            value={messageInput}
+            onChange={setMessageInput}
+            onSubmit={sendMessage}
+            onTyping={handleTyping}
+            onChooseLocalFile={(file) => {
+              setSelectedFile(file)
+              setUploadOpen(true)
+            }}
+            onChooseDriveLink={() => setDriveOpen(true)}
+          />
+        </div>
+      </ConnectlyPanel>
+
+      <div className="flex min-h-0 w-full flex-col gap-4 lg:w-[300px] lg:shrink-0">
+        <UserPresencePanel users={users} />
+        <ConnectlyPanel className="flex min-h-0 flex-1 flex-col" noPadding>
+          <div className="border-b border-white/[0.06] p-5 pb-3">
+            <SectionHeader title="Pinned files" description="Important links and uploads" />
+          </div>
+          <div className="connectly-scroll flex-1 space-y-2 overflow-y-auto p-5 pt-3">
+            {pinnedFiles.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-slate-200/80 bg-slate-50 py-8 text-center text-sm text-slate-500 dark:border-white/[0.08] dark:bg-white/[0.02] dark:text-slate-500">
+                No pinned files yet. Hover a file or Drive link in chat and choose Pin.
+              </p>
+            ) : (
+              pinnedFiles.map((file) => (
+                <div
+                  key={file.id}
+                  className="flex items-start gap-3 rounded-xl border border-slate-200/80 bg-white p-3 transition hover:border-slate-300 dark:border-white/[0.08] dark:bg-white/[0.03] dark:hover:border-white/[0.12]"
+                >
+                  <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" strokeWidth={2} />
+                  <div className="min-w-0 flex-1">
+                    <a
+                      href={pinnedHref(file.url)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="truncate text-sm font-medium text-slate-900 hover:underline dark:text-slate-100"
+                    >
+                      {file.name}
+                    </a>
+                    <p className="text-xs text-slate-500">{file.sender}</p>
+                  </div>
+                  <ActionButton variant="ghost" size="sm" className="shrink-0 !px-2 !py-1 text-xs" onClick={() => handleUnpin(file.id)}>
+                    Unpin
+                  </ActionButton>
+                </div>
+              ))
+            )}
+          </div>
+        </ConnectlyPanel>
       </div>
 
       <CreateRoomModal
@@ -474,89 +579,81 @@ function ChatPage() {
           value={renameDraft}
           onChange={(e) => setRenameDraft(e.target.value)}
           maxLength={80}
-          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-blue-500"
+          className="w-full rounded-xl border border-white/[0.1] bg-[#07111f] px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-blue-500/50"
         />
-        <div className="mt-3 flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={() => setRenameModalOpen(false)}>
+        <div className="mt-4 flex justify-end gap-2">
+          <ActionButton variant="ghost" onClick={() => setRenameModalOpen(false)}>
             Cancel
-          </Button>
-          <Button type="button" disabled={renameBusy} onClick={submitRename}>
+          </ActionButton>
+          <ActionButton variant="primary" disabled={renameBusy} onClick={submitRename}>
             {renameBusy ? 'Saving…' : 'Save'}
-          </Button>
+          </ActionButton>
         </div>
       </Modal>
 
       <Modal open={uploadOpen} title="Upload file" onClose={() => setUploadOpen(false)}>
-        <div className="rounded-xl border border-slate-700 p-4 text-sm text-slate-300">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-sm text-slate-300">
           {selectedFile ? (
             <>
-              <p className="font-medium">{selectedFile.name}</p>
-              <p className="text-xs text-slate-400">
-                {(selectedFile.size / 1024).toFixed(1)} KB
-              </p>
+              <p className="font-medium text-white">{selectedFile.name}</p>
+              <p className="text-xs text-slate-500">{(selectedFile.size / 1024).toFixed(1)} KB</p>
             </>
           ) : (
             <p>No file selected.</p>
           )}
         </div>
-        <Button
-          className="mt-3 w-full"
+        <ActionButton
+          variant="primary"
+          className="mt-4 w-full"
           disabled={!selectedFile || uploading}
           onClick={handleUploadLocalFile}
         >
           {uploading ? 'Uploading...' : 'Upload from computer'}
-        </Button>
+        </ActionButton>
       </Modal>
 
-      <Modal
-        open={driveOpen}
-        title="Attach Google Drive file"
-        onClose={() => setDriveOpen(false)}
-      >
+      <Modal open={driveOpen} title="Attach Google Drive file" onClose={() => setDriveOpen(false)}>
         <input
           value={driveUrl}
           onChange={(event) => setDriveUrl(event.target.value)}
           placeholder="Paste Google Drive share link"
-          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-blue-500"
+          className="w-full rounded-xl border border-white/[0.1] bg-[#07111f] px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-blue-500/50"
         />
-        {!/^\s*$/.test(driveUrl) && !/drive\.google\.com/.test(driveUrl) && (
-          <p className="mt-2 text-xs text-rose-300">
-            Please paste a valid Google Drive URL.
-          </p>
-        )}
-        <Button className="mt-3 w-full" onClick={submitDriveAttachment}>
-          Attach Drive Link
-        </Button>
+        {!/^\s*$/.test(driveUrl) && !/drive\.google\.com/.test(driveUrl) ? (
+          <p className="mt-2 text-xs text-rose-300">Please paste a valid Google Drive URL.</p>
+        ) : null}
+        <ActionButton variant="primary" className="mt-4 w-full" onClick={submitDriveAttachment}>
+          Attach Drive link
+        </ActionButton>
       </Modal>
 
       <Modal open={Boolean(inviteShare)} title="Room ready" onClose={dismissInviteShare}>
         <p className="text-sm text-slate-300">
-          Share this code or link so friends can join <span className="font-medium text-slate-100">{inviteShare?.name}</span>.
+          Share this code or link so friends can join{' '}
+          <span className="font-medium text-white">{inviteShare?.name}</span>.
         </p>
-        <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950 p-3">
+        <div className="mt-4 rounded-2xl border border-white/[0.08] bg-[#07111f] p-4">
           <p className="text-xs text-slate-500">Invite code</p>
-          <p className="font-mono text-lg font-semibold tracking-widest">{inviteShare?.inviteCode}</p>
+          <p className="font-mono text-lg font-semibold tracking-widest text-white">{inviteShare?.inviteCode}</p>
         </div>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <Button
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <ActionButton
+            variant="primary"
             className="flex-1"
             onClick={() => inviteShare?.inviteCode && copyInvite(inviteShare.inviteCode, 'Code copied.')}
           >
             Copy code
-          </Button>
-          <Button
-            variant="ghost"
+          </ActionButton>
+          <ActionButton
+            variant="secondary"
             className="flex-1"
             onClick={() =>
               inviteShare &&
-              copyInvite(
-                `${window.location.origin}/app/rooms/${encodeURIComponent(roomId)}`,
-                'Link copied.',
-              )
+              copyInvite(`${window.location.origin}/app/rooms/${encodeURIComponent(roomId)}`, 'Link copied.')
             }
           >
             Copy link
-          </Button>
+          </ActionButton>
         </div>
       </Modal>
     </div>

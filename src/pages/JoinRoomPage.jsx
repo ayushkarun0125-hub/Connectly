@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import Card from '../components/ui/Card'
-import Button from '../components/ui/Button'
+import { Hash } from 'lucide-react'
+import PageHeader from '../components/connectly/PageHeader'
+import ConnectlyPanel from '../components/connectly/ConnectlyPanel'
+import ActionButton from '../components/connectly/ActionButton'
 import { resolveInviteCodeApi } from '../services/roomService'
 import { useAppStore } from '../store/useAppStore'
 
@@ -32,29 +34,36 @@ function JoinRoomPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md space-y-4">
-      <Card>
-        <h1 className="text-lg font-semibold">Join a room</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Enter the 6-character invite code your friend shared.
-        </p>
-        <form onSubmit={handleJoin} className="mt-4 space-y-3">
-          <input
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="e.g. K7XQ2M"
-            maxLength={16}
-            autoComplete="off"
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm tracking-widest outline-none focus:border-blue-500"
-          />
-          <Button type="submit" className="w-full" disabled={busy || !code.trim()}>
+    <div className="mx-auto max-w-lg space-y-6">
+      <PageHeader
+        title="Join a room"
+        description="Paste the invite code from your teammate. Codes are short and easy to share."
+      />
+      <ConnectlyPanel>
+        <div className="mb-6 flex items-center gap-3 rounded-2xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 text-sm text-blue-100/90">
+          <Hash className="h-5 w-5 shrink-0 text-blue-300" strokeWidth={2} />
+          Invite codes usually look like six or eight characters — no spaces needed.
+        </div>
+        <form onSubmit={handleJoin} className="space-y-4">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-slate-500">Invite code</span>
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="e.g. K7XQ2M"
+              maxLength={16}
+              autoComplete="off"
+              className="w-full rounded-2xl border border-white/[0.1] bg-[#07111f] px-4 py-3 font-mono text-sm tracking-[0.2em] text-white outline-none focus:border-blue-500/45"
+            />
+          </label>
+          <ActionButton variant="primary" className="w-full" type="submit" disabled={busy || !code.trim()}>
             {busy ? 'Looking up…' : 'Join room'}
-          </Button>
+          </ActionButton>
         </form>
-      </Card>
+      </ConnectlyPanel>
       <p className="text-center text-sm text-slate-500">
-        <Link to="/app/rooms/room_general" className="text-blue-300 hover:underline">
-          Back to General
+        <Link to="/app/rooms/room_general" className="font-medium text-blue-400 hover:text-blue-300">
+          ← Back to General
         </Link>
       </p>
     </div>

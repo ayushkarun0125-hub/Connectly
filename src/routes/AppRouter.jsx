@@ -17,6 +17,11 @@ import ProfilePage from '../pages/ProfilePage'
 import SettingsPage from '../pages/SettingsPage'
 import AdminPage from '../pages/AdminPage'
 import NotesPage from '../pages/NotesPage'
+import LoginPreviewPage from '../pages/LoginPreviewPage'
+import RoomDirectoryPage from '../pages/RoomDirectoryPage'
+import TeamPage from '../pages/TeamPage'
+import RequireProfileComplete from './RequireProfileComplete'
+import ProfileSetupPage from '../pages/ProfileSetupPage'
 
 function AppRouter() {
   return (
@@ -27,11 +32,16 @@ function AppRouter() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/login-preview" element={<LoginPreviewPage />} />
       </Route>
 
       <Route element={<ProtectedRoute />}>
-        <Route path="/app" element={<AppLayout />}>
+        <Route path="/app/profile/setup" element={<ProfileSetupPage />} />
+        <Route element={<RequireProfileComplete />}>
+          <Route path="/app" element={<AppLayout />}>
           <Route index element={<DashboardPage />} />
+          <Route path="room-directory" element={<RoomDirectoryPage />} />
+          <Route path="team" element={<TeamPage />} />
           <Route path="rooms/join" element={<JoinRoomPage />} />
           <Route path="rooms/:roomId" element={<ChatPage />} />
           <Route path="rooms/:roomId/whiteboard" element={<WhiteboardPage />} />
@@ -47,6 +57,7 @@ function AppRouter() {
               </RoleGate>
             )}
           />
+          </Route>
         </Route>
       </Route>
 

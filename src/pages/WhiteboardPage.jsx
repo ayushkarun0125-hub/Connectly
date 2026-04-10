@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import Card from '../components/ui/Card'
+import SurfaceCard from '../components/ui/SurfaceCard'
 import { Tabs } from '../components/ui/Tabs'
 import WhiteboardCanvas from '../components/WhiteboardCanvas'
 import { connectSocket } from '../services/socket'
@@ -24,7 +24,7 @@ function WhiteboardPage() {
 
   return (
     <div className="space-y-4">
-      <Card>
+      <SurfaceCard>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <h1 className="mr-auto text-lg font-semibold">Whiteboard · {roomId}</h1>
           <Tabs tabs={['Canvas', 'Notes']} active={tab} onChange={setTab} />
@@ -36,7 +36,7 @@ function WhiteboardPage() {
             Room notes panel placeholder for sprint annotations and links.
           </div>
         )}
-      </Card>
+      </SurfaceCard>
     </div>
   )
 }

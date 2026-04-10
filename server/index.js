@@ -6,10 +6,13 @@ import http from 'http'
 import net from 'net'
 import path from 'path'
 import fs from 'fs/promises'
+import crypto from 'node:crypto'
 import { Server } from 'socket.io'
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 import registerSocketHandlers from './sockets/registerSocketHandlers.js'
 import { ensureDataFiles } from './utils/fileIO.js'
-import { initDatabase } from './utils/db.js'
+import { getDb, initDatabase } from './utils/db.js'
 import {
   createRoomWithInvite,
   getRoomById,
@@ -22,10 +25,51 @@ const server = http.createServer(app)
 
 const port = Number(process.env.PORT || 3001)
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173'
+const jwtSecret = process.env.JWT_SECRET || 'dev_jwt_secret_change_me'
 
 app.use(cors({ origin: clientUrl }))
 app.use(express.json({ limit: '8mb' }))
 app.use('/uploads', express.static(path.resolve('data', 'uploads')))
+
+function signToken(payload) {
+  return jwt.sign(payload, jwtSecret, { expiresIn: '7d' })
+}
+
+function readBearerToken(req) {
+  const authHeader = req.headers.authorization || ''
+  if (!authHeader.startsWith('Bearer ')) return null
+  return authHeader.slice(7).trim()
+}
+
+function formatUser(row) {
+  if (!row) return null
+  const raw = row.profileCompleted ?? row.profile_completed
+  const profileCompleted = raw === undefined || raw === null ? true : Number(raw) === 1
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.displayName ?? row.display_name ?? '',
+    role: row.role,
+    bio: row.bio ?? '',
+    profileCompleted,
+  }
+}
+
+async function getAuthUser(req) {
+  const token = readBearerToken(req)
+  if (!token) return null
+  try {
+    const payload = jwt.verify(token, jwtSecret)
+    const db = getDb()
+    const row = await db.get(
+      'SELECT id, email, display_name as displayName, role, bio, profile_completed as profileCompleted FROM users WHERE id = ?',
+      payload.sub,
+    )
+    return formatUser(row)
+  } catch {
+    return null
+  }
+}
 
 const io = new Server(server, {
   cors: {
@@ -64,6 +108,128 @@ const openPort = await findOpenPort(port)
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'connectly-server', port: openPort })
+})
+
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase()
+    const password = String(req.body?.password || '')
+    const displayName = String(req.body?.displayName || '').trim() || 'User'
+    if (!email || !password) {
+      res.status(400).json({ error: 'Email and password are required' })
+      return
+    }
+    if (password.length < 6) {
+      res.status(400).json({ error: 'Password must be at least 6 characters' })
+      return
+    }
+    const db = getDb()
+    const existing = await db.get('SELECT id FROM users WHERE email = ?', email)
+    if (existing) {
+      res.status(409).json({ error: 'Email already in use' })
+      return
+    }
+    const id = `user_${crypto.randomBytes(12).toString('hex')}`
+    const now = new Date().toISOString()
+    const hash = await bcrypt.hash(password, 10)
+    await db.run(
+      'INSERT INTO users (id, email, password_hash, display_name, role, created_at, bio, profile_completed) VALUES (?, ?, ?, ?, ?, ?, NULL, 0)',
+      id,
+      email,
+      hash,
+      displayName,
+      'user',
+      now,
+    )
+    const token = signToken({ sub: id, role: 'user' })
+    res.status(201).json({
+      token,
+      user: {
+        id,
+        email,
+        displayName,
+        role: 'user',
+        bio: '',
+        profileCompleted: false,
+      },
+    })
+  } catch (err) {
+    console.error('POST /api/auth/signup', err)
+    res.status(500).json({ error: 'Signup failed' })
+  }
+})
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase()
+    const password = String(req.body?.password || '')
+    if (!email || !password) {
+      res.status(400).json({ error: 'Email and password are required' })
+      return
+    }
+    const db = getDb()
+    const row = await db.get(
+      'SELECT id, email, password_hash as passwordHash, display_name as displayName, role, bio, profile_completed as profileCompleted FROM users WHERE email = ?',
+      email,
+    )
+    if (!row) {
+      res.status(401).json({ error: 'Invalid credentials' })
+      return
+    }
+    const ok = await bcrypt.compare(password, row.passwordHash)
+    if (!ok) {
+      res.status(401).json({ error: 'Invalid credentials' })
+      return
+    }
+    const token = signToken({ sub: row.id, role: row.role })
+    res.json({
+      token,
+      user: formatUser(row),
+    })
+  } catch (err) {
+    console.error('POST /api/auth/login', err)
+    res.status(500).json({ error: 'Login failed' })
+  }
+})
+
+app.get('/api/auth/me', async (req, res) => {
+  const user = await getAuthUser(req)
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+  res.json({ user })
+})
+
+app.patch('/api/auth/profile', async (req, res) => {
+  try {
+    const user = await getAuthUser(req)
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+    const rawName = req.body?.displayName
+    const rawBio = req.body?.bio
+    const displayName =
+      typeof rawName === 'string' ? rawName.trim().slice(0, 80) : user.displayName
+    const bio = typeof rawBio === 'string' ? rawBio.trim().slice(0, 500) : user.bio || ''
+    if (!displayName) {
+      res.status(400).json({ error: 'Display name is required' })
+      return
+    }
+    const db = getDb()
+    await db.run(
+      'UPDATE users SET display_name = ?, bio = ?, profile_completed = 1 WHERE id = ?',
+      displayName,
+      bio || null,
+      user.id,
+    )
+    const next = { ...user, displayName, bio, profileCompleted: true }
+    res.json({ user: next })
+  } catch (err) {
+    console.error('PATCH /api/auth/profile', err)
+    res.status(500).json({ error: 'Update failed' })
+  }
 })
 
 app.post('/api/rooms', async (req, res) => {
@@ -123,6 +289,89 @@ app.patch('/api/rooms/:roomId', async (req, res) => {
   } catch (err) {
     console.error('PATCH /api/rooms/:roomId', err)
     res.status(500).json({ error: 'Update failed' })
+  }
+})
+
+app.get('/api/rooms/:roomId/pins', async (req, res) => {
+  try {
+    const db = getDb()
+    const rows = await db.all(
+      `SELECT id, room_id as roomId, message_id as messageId, name, url, sender, pinned_at as pinnedAt
+       FROM room_pins WHERE room_id = ? ORDER BY pinned_at DESC`,
+      req.params.roomId,
+    )
+    res.json(rows)
+  } catch (err) {
+    console.error('GET /api/rooms/:roomId/pins', err)
+    res.status(500).json({ error: 'Failed to list pins' })
+  }
+})
+
+app.post('/api/rooms/:roomId/pins', async (req, res) => {
+  try {
+    const user = await getAuthUser(req)
+    if (!user) {
+      res.status(401).json({ error: 'Sign in to pin files' })
+      return
+    }
+    const name = String(req.body?.name || '').trim().slice(0, 240)
+    const url = String(req.body?.url || '').trim().slice(0, 2000)
+    if (!name || !url) {
+      res.status(400).json({ error: 'Name and url are required' })
+      return
+    }
+    const messageId = req.body?.messageId ? String(req.body.messageId).slice(0, 80) : null
+    const sender = req.body?.sender ? String(req.body.sender).slice(0, 80) : user.displayName
+    const roomId = req.params.roomId
+    const db = getDb()
+    const id = `pin_${crypto.randomBytes(10).toString('hex')}`
+    const pinnedAt = new Date().toISOString()
+    await db.run(
+      `INSERT INTO room_pins (id, room_id, message_id, name, url, sender, pinned_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      id,
+      roomId,
+      messageId,
+      name,
+      url,
+      sender,
+      pinnedAt,
+    )
+    res.status(201).json({
+      id,
+      roomId,
+      messageId,
+      name,
+      url,
+      sender,
+      pinnedAt,
+    })
+  } catch (err) {
+    console.error('POST /api/rooms/:roomId/pins', err)
+    res.status(500).json({ error: 'Failed to pin file' })
+  }
+})
+
+app.delete('/api/rooms/:roomId/pins/:pinId', async (req, res) => {
+  try {
+    const user = await getAuthUser(req)
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+    const db = getDb()
+    const result = await db.run(
+      'DELETE FROM room_pins WHERE id = ? AND room_id = ?',
+      req.params.pinId,
+      req.params.roomId,
+    )
+    if (result.changes === 0) {
+      res.status(404).json({ error: 'Pin not found' })
+      return
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/rooms/:roomId/pins/:pinId', err)
+    res.status(500).json({ error: 'Failed to remove pin' })
   }
 })
 

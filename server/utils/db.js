@@ -52,6 +52,15 @@ export async function initDatabase() {
       type TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
+      created_at TEXT NOT NULL
+    );
   `)
 
   const roomColumns = await db.all(`PRAGMA table_info(rooms)`)
@@ -61,6 +70,28 @@ export async function initDatabase() {
   await db.exec(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_rooms_invite_code ON rooms(invite_code) WHERE invite_code IS NOT NULL`,
   )
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS room_pins (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL,
+      message_id TEXT,
+      name TEXT NOT NULL,
+      url TEXT NOT NULL,
+      sender TEXT,
+      pinned_at TEXT NOT NULL,
+      FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_room_pins_room ON room_pins(room_id);
+  `)
+
+  const userCols = await db.all(`PRAGMA table_info(users)`)
+  if (!userCols.some((col) => col.name === 'bio')) {
+    await db.exec(`ALTER TABLE users ADD COLUMN bio TEXT`)
+  }
+  if (!userCols.some((col) => col.name === 'profile_completed')) {
+    await db.exec(`ALTER TABLE users ADD COLUMN profile_completed INTEGER NOT NULL DEFAULT 1`)
+  }
 }
 
 export function getDb() {

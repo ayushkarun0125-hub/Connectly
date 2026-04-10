@@ -1,16 +1,26 @@
 import { mockFiles, mockRooms, mockUsers } from '../mock/data'
 import { wait } from '../lib/utils'
+import { fetchRoomPins } from './pinService'
 
 const API_BASE = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
 
 export async function fetchDashboard() {
-  await wait(600)
+  await wait(400)
   return {
-    rooms: mockRooms,
+    rooms: mockRooms.map((room, i) => ({
+      ...room,
+      unread: [2, 0, 1][i] ?? 0,
+      onlineInRoom: Math.max(1, Math.min(room.members, Math.round(room.members * 0.55) + 1)),
+    })),
     activeUsers: mockUsers,
-    notifications: [
-      { id: 'n1', text: 'Ayush joined room_general' },
-      { id: 'n2', text: 'New file uploaded in room_design' },
+    sharedFilesCount: mockFiles.length,
+    unreadMessagesTotal: 5,
+    recentFiles: mockFiles,
+    activity: [
+      { id: 'a1', type: 'join', actor: 'Ayush', action: 'joined', target: 'General', time: '3 min ago' },
+      { id: 'a2', type: 'message', actor: 'Aaryan', action: 'sent a message in', target: 'Design', time: '12 min ago' },
+      { id: 'a3', type: 'file', actor: 'Dhruv', action: 'uploaded', target: 'sprint-notes.pdf', time: '24 min ago' },
+      { id: 'a4', type: 'join', actor: 'Aaryan', action: 'started whiteboard in', target: 'Backend', time: '1 hr ago' },
     ],
   }
 }
@@ -39,11 +49,20 @@ export async function fetchRoomData(roomId) {
   } catch {
     /* keep mock shell */
   }
+  const pins = await fetchRoomPins(roomId)
+  const pinnedFiles = pins.map((p) => ({
+    id: p.id,
+    name: p.name,
+    url: p.url,
+    sender: p.sender || '',
+    messageId: p.messageId,
+    pinnedAt: p.pinnedAt,
+  }))
   return {
     room,
     messages: [],
     members: [],
-    pinnedFiles: [],
+    pinnedFiles,
   }
 }
 

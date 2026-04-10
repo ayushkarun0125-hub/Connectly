@@ -15,7 +15,8 @@ const initialAuth = readStoredAuth()
 
 export const useAppStore = create((set) => ({
   auth: initialAuth || { token: null, user: null },
-  theme: localStorage.getItem('connectly-theme') || 'dark',
+  /** App is dark-only; kept for compatibility with hooks that read `theme`. */
+  theme: 'dark',
   toasts: [],
   setAuth: (auth) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(auth))
@@ -25,12 +26,10 @@ export const useAppStore = create((set) => ({
     localStorage.removeItem(STORAGE_KEY)
     set({ auth: { token: null, user: null } })
   },
-  toggleTheme: () =>
-    set((state) => {
-      const next = state.theme === 'dark' ? 'light' : 'dark'
-      localStorage.setItem('connectly-theme', next)
-      return { theme: next }
-    }),
+  toggleTheme: () => {
+    localStorage.setItem('connectly-theme', 'dark')
+    set({ theme: 'dark' })
+  },
   pushToast: (toast) =>
     set((state) => ({
       toasts: [...state.toasts, { id: Date.now(), ...toast }],
