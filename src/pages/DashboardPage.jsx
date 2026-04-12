@@ -228,7 +228,7 @@ function DashboardPage() {
               type="button"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => navigate('/app/rooms/room_general/whiteboard')}
+              onClick={() => navigate('/app/rooms/room_design/whiteboard')}
               className="flex items-center gap-2 rounded-2xl border border-white/[0.1] bg-white/[0.04] px-4 py-3 text-left text-sm font-semibold text-slate-200 transition hover:bg-white/[0.08]"
             >
               <Pencil className="h-4 w-4 text-slate-400" strokeWidth={2} />

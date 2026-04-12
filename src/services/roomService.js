@@ -23,10 +23,26 @@ export function persistRoomLabelToStorage(roomId, name) {
   }
 }
 
+export function removeRoomLabelFromStorage(roomId) {
+  if (!roomId) return
+  try {
+    const map = readRoomLabelsFromStorage()
+    delete map[roomId]
+    localStorage.setItem(ROOM_LABELS_KEY, JSON.stringify(map))
+  } catch {
+    /* ignore */
+  }
+}
+
+function authHeaders() {
+  const t = localStorage.getItem('connectly_jwt')
+  return t ? { Authorization: `Bearer ${t}` } : {}
+}
+
 export async function createRoomApi(name) {
   const response = await fetch(`${getServerBaseUrl()}/api/rooms`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ name }),
   })
   if (!response.ok) {
@@ -57,4 +73,16 @@ export async function updateRoomNameApi(roomId, name) {
     throw new Error(text || response.statusText)
   }
   return response.json()
+}
+
+export async function deleteRoomApi(roomId) {
+  const response = await fetch(`${getServerBaseUrl()}/api/rooms/${encodeURIComponent(roomId)}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() },
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || response.statusText || 'Delete failed')
+  }
+  return data
 }

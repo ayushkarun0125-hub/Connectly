@@ -5,21 +5,19 @@ export const mockUsers = [
 ]
 
 export const mockRooms = [
-  { id: 'room_general', name: 'General', lastMessage: 'Sprint planning at 4 PM', members: 9 },
-  { id: 'room_design', name: 'Design', lastMessage: 'New canvas controls shipped', members: 4 },
+  { id: 'room_design', name: 'Design', lastMessage: 'Sprint planning at 4 PM', members: 9 },
   { id: 'room_backend', name: 'Backend', lastMessage: 'Socket handlers refactor done', members: 6 },
 ]
 
 export const mockMessages = {
-  room_general: [
+  room_design: [
     { id: 'm1', userId: 'u2', username: 'Ayush', content: 'Welcome to Connectly', timestamp: new Date().toISOString(), status: 'sent' },
     { id: 'm2', userId: 'u1', username: 'Aaryan', content: 'Whiteboard feels smooth now', timestamp: new Date().toISOString(), status: 'sent' },
   ],
-  room_design: [],
   room_backend: [],
 }
 
 export const mockFiles = [
   { id: 'f1', name: 'wireframe.png', roomId: 'room_design', sender: 'Aaryan', size: '1.4 MB', type: 'image/png', uploadedAt: '2 min ago', preview: 'https://picsum.photos/200/120' },
-  { id: 'f2', name: 'sprint-notes.pdf', roomId: 'room_general', sender: 'Dhruv', size: '420 KB', type: 'application/pdf', uploadedAt: '10 min ago' },
+  { id: 'f2', name: 'sprint-notes.pdf', roomId: 'room_design', sender: 'Dhruv', size: '420 KB', type: 'application/pdf', uploadedAt: '10 min ago' },
 ]

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Link2, MessageSquare, Pencil } from 'lucide-react'
+import { Link2, MessageSquare, Pencil, Trash2 } from 'lucide-react'
 import MessageFeed from '../components/MessageFeed'
 import MessageInput from '../components/MessageInput'
 import TypingIndicator from '../components/TypingIndicator'
@@ -11,10 +11,13 @@ import { connectSocket, disconnectSocket } from '../services/socket'
 import { fetchRoomData } from '../services/chatService'
 import { addRoomPin, fetchRoomPins, removeRoomPin } from '../services/pinService'
 import {
+  deleteRoomApi,
   persistRoomLabelToStorage,
   readRoomLabelsFromStorage,
+  removeRoomLabelFromStorage,
   updateRoomNameApi,
 } from '../services/roomService'
+import { addHiddenRoomId, PROTECTED_ROOM_IDS, readHiddenRoomIds, removeHiddenRoomId } from '../lib/hiddenRooms'
 import { useAppStore } from '../store/useAppStore'
 import { useAuth } from '../contexts/useAuth'
 import { getServerBaseUrl } from '@/config/serverUrl'
@@ -53,9 +56,8 @@ function mergeInboundMessage(prev, message) {
   return [...next, message]
 }
 
-const DEFAULT_ROOM_IDS = ['room_general', 'room_design', 'room_backend']
+const DEFAULT_ROOM_IDS = ['room_design', 'room_backend']
 const BUILTIN_ROOM_NAMES = {
-  room_general: 'General',
   room_design: 'Design',
   room_backend: 'Backend',
 }
@@ -68,6 +70,16 @@ function readRecentRoomIds() {
     return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : []
   } catch {
     return []
+  }
+}
+
+function removeRecentRoomId(roomId) {
+  if (!roomId) return
+  try {
+    const prev = readRecentRoomIds().filter((id) => id !== roomId)
+    localStorage.setItem(RECENT_ROOMS_KEY, JSON.stringify(prev))
+  } catch {
+    /* ignore */
   }
 }
 
@@ -108,7 +120,7 @@ function ChatPage() {
   const location = useLocation()
   const { user } = useAuth()
   const role = user?.role ?? 'user'
-  const { roomId = 'room_general' } = useParams()
+  const { roomId = 'room_design' } = useParams()
   const [messages, setMessages] = useState([])
   const [users, setUsers] = useState([])
   const [pinnedFiles, setPinnedFiles] = useState([])
@@ -126,6 +138,11 @@ function ChatPage() {
   const [renameDraft, setRenameDraft] = useState('')
   const [renameBusy, setRenameBusy] = useState(false)
   const [roomLabels, setRoomLabels] = useState(readRoomLabelsFromStorage)
+  const [hiddenIds, setHiddenIds] = useState(() => readHiddenRoomIds())
+  const [roomMeta, setRoomMeta] = useState({})
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const metaLoadedRef = useRef(new Set())
   const username = user?.displayName || user?.email || 'User'
 
   const typingNames = useMemo(() => Object.values(typingUsers), [typingUsers])
@@ -138,9 +155,21 @@ function ChatPage() {
   const sidebarRoomIds = useMemo(() => {
     const extra = recentRoomIds.filter((id) => !DEFAULT_ROOM_IDS.includes(id))
     const merged = [...DEFAULT_ROOM_IDS, ...extra]
-    if (roomId && !merged.includes(roomId)) return [roomId, ...merged]
-    return merged
-  }, [recentRoomIds, roomId])
+    const withCurrent = roomId && !merged.includes(roomId) ? [roomId, ...merged] : merged
+    return withCurrent.filter((id) => !hiddenIds.includes(id))
+  }, [recentRoomIds, roomId, hiddenIds])
+
+  const canDeleteRoom = useMemo(() => {
+    return (id) => {
+      if (PROTECTED_ROOM_IDS.includes(id)) return false
+      const uid = user?.id
+      if (uid == null) return false
+      if (role === 'admin' || role === 'moderator') return true
+      const creator = roomMeta[id]?.createdByUserId
+      if (creator == null) return false
+      return Number(creator) === Number(uid)
+    }
+  }, [user?.id, role, roomMeta])
 
   const headerTitle = currentRoom?.name || BUILTIN_ROOM_NAMES[roomId] || roomSidebarLabel(roomId, roomLabels)
 
@@ -156,8 +185,38 @@ function ChatPage() {
         persistRoomLabelToStorage(data.room.id, data.room.name)
         setRoomLabels((prev) => ({ ...prev, [data.room.id]: data.room.name }))
       }
+      if (data.room?.id) {
+        setRoomMeta((prev) => ({
+          ...prev,
+          [data.room.id]: { createdByUserId: data.room.createdByUserId ?? null },
+        }))
+        metaLoadedRef.current.add(data.room.id)
+      }
     })
   }, [roomId])
+
+  useEffect(() => {
+    let cancelled = false
+    for (const id of sidebarRoomIds) {
+      if (PROTECTED_ROOM_IDS.includes(id)) continue
+      if (id === roomId) continue
+      if (metaLoadedRef.current.has(id)) continue
+      fetch(`${getServerBaseUrl()}/api/rooms/${encodeURIComponent(id)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (cancelled || !data?.id) return
+          metaLoadedRef.current.add(id)
+          setRoomMeta((prev) => ({
+            ...prev,
+            [data.id]: { createdByUserId: data.createdByUserId ?? null },
+          }))
+        })
+        .catch(() => {})
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [sidebarRoomIds, roomId])
 
   async function refreshPins() {
     const rows = await fetchRoomPins(roomId)
@@ -206,6 +265,11 @@ function ChatPage() {
     const handleNewMessage = (message) => {
       setMessages((prev) => mergeInboundMessage(prev, message))
     }
+    const handleMessageDeleted = ({ messageId }) => {
+      if (!messageId) return
+      setMessages((prev) => prev.filter((m) => m.id !== messageId))
+      refreshPins()
+    }
     const handleRoomUsers = (roomUsers) => setUsers(roomUsers)
     const handleUserJoined = (u) => {
       setUsers((prev) => {
@@ -251,6 +315,7 @@ function ChatPage() {
     socket.on('user-typing', handleUserTyping)
     socket.on('user-stopped-typing', handleUserStoppedTyping)
     socket.on('file-shared', handleNewMessage)
+    socket.on('message-deleted', handleMessageDeleted)
 
     if (!socket.connected) {
       socket.connect()
@@ -270,6 +335,7 @@ function ChatPage() {
       socket.off('user-typing', handleUserTyping)
       socket.off('user-stopped-typing', handleUserStoppedTyping)
       socket.off('file-shared', handleNewMessage)
+      socket.off('message-deleted', handleMessageDeleted)
       disconnectSocket()
     }
   }, [roomId, username, pushToast])
@@ -377,13 +443,73 @@ function ChatPage() {
     }
   }
 
+  function fallbackRoomAfterRemoving(excludeId) {
+    const extra = readRecentRoomIds().filter((rid) => rid !== excludeId && !DEFAULT_ROOM_IDS.includes(rid))
+    const merged = [...DEFAULT_ROOM_IDS, ...extra]
+    const hidden = readHiddenRoomIds()
+    const candidates = merged.filter((rid) => rid !== excludeId && !hidden.includes(rid))
+    return candidates[0] || 'room_design'
+  }
+
+  function handleRemoveRoomFromSidebar(id) {
+    addHiddenRoomId(id)
+    setHiddenIds(readHiddenRoomIds())
+    if (roomId === id) {
+      const nextRoom = fallbackRoomAfterRemoving(id)
+      navigate(`/app/rooms/${encodeURIComponent(nextRoom)}`)
+    }
+  }
+
   function handleCreatedRoom(created) {
     setRoomLabels((prev) => ({ ...prev, [created.id]: created.name }))
+    if (created.createdByUserId != null) {
+      setRoomMeta((prev) => ({
+        ...prev,
+        [created.id]: { createdByUserId: created.createdByUserId },
+      }))
+      metaLoadedRef.current.add(created.id)
+    }
     navigate(`/app/rooms/${encodeURIComponent(created.id)}`, {
       state: {
         inviteShare: { inviteCode: created.inviteCode, name: created.name },
       },
     })
+  }
+
+  async function handleConfirmDeleteRoom() {
+    if (!deleteTarget) return
+    setDeleteBusy(true)
+    try {
+      await deleteRoomApi(deleteTarget)
+      metaLoadedRef.current.delete(deleteTarget)
+      removeRecentRoomId(deleteTarget)
+      removeRoomLabelFromStorage(deleteTarget)
+      removeHiddenRoomId(deleteTarget)
+      setHiddenIds(readHiddenRoomIds())
+      setRoomLabels((prev) => {
+        const next = { ...prev }
+        delete next[deleteTarget]
+        return next
+      })
+      setRoomMeta((prev) => {
+        const next = { ...prev }
+        delete next[deleteTarget]
+        return next
+      })
+      if (roomId === deleteTarget) {
+        const nextRoom = fallbackRoomAfterRemoving(deleteTarget)
+        navigate(`/app/rooms/${encodeURIComponent(nextRoom)}`)
+      }
+      pushToast({ title: 'Room deleted', description: 'The room was removed for everyone.' })
+      setDeleteTarget(null)
+    } catch (err) {
+      pushToast({
+        title: 'Could not delete room',
+        description: err?.message || 'Sign in if you are the owner or an admin.',
+      })
+    } finally {
+      setDeleteBusy(false)
+    }
   }
 
   async function submitRename() {
@@ -441,6 +567,9 @@ function ChatPage() {
               to={`/app/rooms/${encodeURIComponent(id)}`}
               label={roomSidebarLabel(id, roomLabels)}
               active={roomId === id}
+              onRemoveFromList={() => handleRemoveRoomFromSidebar(id)}
+              canDelete={canDeleteRoom(id)}
+              onDelete={canDeleteRoom(id) ? () => setDeleteTarget(id) : undefined}
             />
           ))}
         </nav>
@@ -472,6 +601,17 @@ function ChatPage() {
               >
                 Rename
               </ActionButton>
+              {canDeleteRoom(roomId) ? (
+                <ActionButton
+                  variant="ghost"
+                  size="sm"
+                  className="!rounded-full text-rose-300 hover:bg-rose-500/15 hover:text-rose-100"
+                  onClick={() => setDeleteTarget(roomId)}
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" strokeWidth={2} />
+                  Delete
+                </ActionButton>
+              ) : null}
               <Link
                 to={`/app/rooms/${encodeURIComponent(roomId)}/whiteboard`}
                 className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-blue-500/30 hover:bg-blue-500/10 hover:text-blue-100"
@@ -574,6 +714,26 @@ function ChatPage() {
         onClose={() => setCreateModalOpen(false)}
         onCreated={handleCreatedRoom}
       />
+
+      <Modal open={Boolean(deleteTarget)} title="Delete this room?" onClose={() => !deleteBusy && setDeleteTarget(null)}>
+        <p className="text-sm text-slate-300">
+          This removes the room for <span className="font-medium text-white">everyone</span> and deletes its messages.
+          This cannot be undone.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <ActionButton variant="ghost" disabled={deleteBusy} onClick={() => setDeleteTarget(null)}>
+            Cancel
+          </ActionButton>
+          <ActionButton
+            variant="primary"
+            className="!bg-rose-600 hover:!bg-rose-500"
+            disabled={deleteBusy}
+            onClick={handleConfirmDeleteRoom}
+          >
+            {deleteBusy ? 'Deleting…' : 'Delete'}
+          </ActionButton>
+        </div>
+      </Modal>
 
       <Modal open={renameModalOpen} title="Rename room" onClose={() => setRenameModalOpen(false)}>
         <input

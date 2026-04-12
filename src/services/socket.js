@@ -4,6 +4,14 @@ import { getServerBaseUrl } from '@/config/serverUrl'
 let socketInstance = null
 let socketInstanceUrl = null
 
+function readAuthToken() {
+  try {
+    return localStorage.getItem('connectly_jwt') || ''
+  } catch {
+    return ''
+  }
+}
+
 export function getSocket() {
   const url = getServerBaseUrl()
   if (socketInstance && socketInstanceUrl !== url) {
@@ -15,7 +23,9 @@ export function getSocket() {
     socketInstanceUrl = url
     socketInstance = io(url, {
       autoConnect: false,
-      transports: ['websocket'],
+      // Polling first avoids failures when pure WebSocket upgrade is blocked (proxy, some browsers).
+      transports: ['polling', 'websocket'],
+      auth: { token: readAuthToken() },
     })
   }
 
@@ -24,6 +34,12 @@ export function getSocket() {
 
 export function connectSocket() {
   const socket = getSocket()
+  try {
+    const t = readAuthToken()
+    socket.auth = { ...socket.auth, token: t }
+  } catch {
+    /* ignore */
+  }
   if (!socket.connected) {
     socket.connect()
   }

@@ -71,6 +71,15 @@ export async function initDatabase() {
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_rooms_invite_code ON rooms(invite_code) WHERE invite_code IS NOT NULL`,
   )
 
+  const roomCols2 = await db.all(`PRAGMA table_info(rooms)`)
+  if (!roomCols2.some((col) => col.name === 'archived')) {
+    await db.exec(`ALTER TABLE rooms ADD COLUMN archived INTEGER NOT NULL DEFAULT 0`)
+  }
+  const roomCols3 = await db.all(`PRAGMA table_info(rooms)`)
+  if (!roomCols3.some((col) => col.name === 'created_by_user_id')) {
+    await db.exec(`ALTER TABLE rooms ADD COLUMN created_by_user_id TEXT`)
+  }
+
   await db.exec(`
     CREATE TABLE IF NOT EXISTS room_pins (
       id TEXT PRIMARY KEY,
@@ -83,6 +92,14 @@ export async function initDatabase() {
       FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_room_pins_room ON room_pins(room_id);
+
+    CREATE TABLE IF NOT EXISTS upload_files (
+      filename TEXT PRIMARY KEY,
+      user_id TEXT,
+      room_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `)
 
   const userCols = await db.all(`PRAGMA table_info(users)`)
@@ -91,6 +108,18 @@ export async function initDatabase() {
   }
   if (!userCols.some((col) => col.name === 'profile_completed')) {
     await db.exec(`ALTER TABLE users ADD COLUMN profile_completed INTEGER NOT NULL DEFAULT 1`)
+  }
+  if (!userCols.some((col) => col.name === 'account_status')) {
+    await db.exec(`ALTER TABLE users ADD COLUMN account_status TEXT NOT NULL DEFAULT 'active'`)
+  }
+
+  // Deprecated default room: Design is the team default; remove General and related rows.
+  try {
+    await db.run(`DELETE FROM whiteboard_strokes WHERE room_id = 'room_general'`)
+    await db.run(`DELETE FROM upload_files WHERE room_id = 'room_general'`)
+    await db.run(`DELETE FROM rooms WHERE id = 'room_general'`)
+  } catch {
+    /* ignore if tables empty or migration already applied */
   }
 }
 

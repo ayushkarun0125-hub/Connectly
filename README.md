@@ -58,9 +58,9 @@ Beyond basic chat, it includes a **collaborative whiteboard**, **live presence**
 - **Sign up / login** with **bcrypt** password hashing and **JWT** sessions.
 - **App roles** (`admin` / `moderator` / `user`) stored on the user record; Admin UI is gated for elevated roles.
 - **Room roles**: first member in a room may be treated as room admin for that space (see server room logic).
-- There is **no default admin account**. After signing up, promote a user in SQLite if needed, for example:  
+- **Dev admin seed** (non-production): on first server start, if no user exists with the configured email, the API creates an **admin** account. Defaults: **`admin@connectly.local`** / **`ConnectlyAdmin2026!`** (override with **`ADMIN_EMAIL`** and **`ADMIN_PASSWORD`** in `server/.env`). Set **`SEED_ADMIN=0`** to disable. In **production**, seeding runs only if **`SEED_ADMIN=1`** (avoid on public servers). If that email is already registered, the seed step does nothing; promote manually if needed:  
   `UPDATE users SET role = 'admin' WHERE email = 'you@example.com';`  
-  Then sign in again so the token reflects the new role.
+  Then sign in again so the JWT includes the new role.
 
 ### Landing and app shell
 

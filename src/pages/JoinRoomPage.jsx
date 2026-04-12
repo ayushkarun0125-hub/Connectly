@@ -62,8 +62,8 @@ function JoinRoomPage() {
         </form>
       </ConnectlyPanel>
       <p className="text-center text-sm text-slate-500">
-        <Link to="/app/rooms/room_general" className="font-medium text-blue-400 hover:text-blue-300">
-          ← Back to General
+        <Link to="/app/rooms/room_design" className="font-medium text-blue-400 hover:text-blue-300">
+          ← Back to Design
         </Link>
       </p>
     </div>

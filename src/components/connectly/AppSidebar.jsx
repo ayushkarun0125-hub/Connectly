@@ -17,7 +17,7 @@ const navSections = [
     label: 'Workspace',
     items: [
       { to: '/app', label: 'Overview', icon: LayoutDashboard, end: true, match: null },
-      { to: '/app/rooms/room_general', label: 'Chats', icon: MessageSquare, end: false, match: 'chats' },
+      { to: '/app/rooms/room_design', label: 'Chats', icon: MessageSquare, end: false, match: 'chats' },
       { to: '/app/room-directory', label: 'Rooms', icon: LayoutGrid, end: true, match: null },
       { to: '/app/files', label: 'Files', icon: FolderOpen, end: true, match: null },
       { to: '/app/notes', label: 'Notes', icon: StickyNote, end: true, match: null },

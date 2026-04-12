@@ -1,5 +1,6 @@
 import { createMessage, getRoomHistory, persistMessage } from '../controllers/messageController.js'
 import { saveFile } from '../controllers/fileController.js'
+import { recordUploadFile } from '../controllers/uploadController.js'
 import { addStroke, getWhiteboardState } from '../controllers/whiteboardController.js'
 import { getRoomUsers, getUserRoom, joinRoom, leaveRoom } from '../controllers/roomController.js'
 
@@ -71,6 +72,18 @@ export default function registerSocketHandlers(io) {
         },
       })
       await persistMessage(roomId, message)
+      if (socket.accountUserId) {
+        try {
+          await recordUploadFile({
+            filename: savedName,
+            userId: socket.accountUserId,
+            roomId,
+            messageId: message.id,
+          })
+        } catch {
+          /* upload still on disk; deletion may rely on admin until ledger exists */
+        }
+      }
       io.to(roomId).emit('new-message', message)
       io.to(roomId).emit('file-shared', message)
     })

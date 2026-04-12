@@ -261,7 +261,7 @@ function HeroPreview() {
               {[
                 { label: '9 active users', dot: 'emerald' },
                 { label: 'wireframe-v2.png uploaded', dot: 'blue' },
-                { label: 'room_general synchronized', dot: 'emerald' },
+                { label: 'room_design synchronized', dot: 'emerald' },
               ].map((row) => (
                 <div
                   key={row.label}

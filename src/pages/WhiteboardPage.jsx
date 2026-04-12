@@ -6,7 +6,7 @@ import WhiteboardCanvas from '../components/WhiteboardCanvas'
 import { connectSocket } from '../services/socket'
 
 function WhiteboardPage() {
-  const { roomId = 'room_general' } = useParams()
+  const { roomId = 'room_design' } = useParams()
   const [tab, setTab] = useState('Canvas')
   const [remoteDrawEvent, setRemoteDrawEvent] = useState(null)
 

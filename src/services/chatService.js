@@ -16,7 +16,7 @@ export async function fetchDashboard() {
     unreadMessagesTotal: 5,
     recentFiles: mockFiles,
     activity: [
-      { id: 'a1', type: 'join', actor: 'Ayush', action: 'joined', target: 'General', time: '3 min ago' },
+      { id: 'a1', type: 'join', actor: 'Ayush', action: 'joined', target: 'Design', time: '3 min ago' },
       { id: 'a2', type: 'message', actor: 'Aaryan', action: 'sent a message in', target: 'Design', time: '12 min ago' },
       { id: 'a3', type: 'file', actor: 'Dhruv', action: 'uploaded', target: 'sprint-notes.pdf', time: '24 min ago' },
       { id: 'a4', type: 'join', actor: 'Aaryan', action: 'started whiteboard in', target: 'Backend', time: '1 hr ago' },
@@ -43,6 +43,7 @@ export async function fetchRoomData(roomId) {
         id: data.id,
         name: data.name,
         inviteCode: data.inviteCode ?? null,
+        createdByUserId: data.createdByUserId ?? null,
       }
     }
   } catch {
@@ -79,6 +80,54 @@ export async function fetchUploadedFiles() {
   } catch {
     return []
   }
+}
+
+function authHeaders() {
+  const t = localStorage.getItem('connectly_jwt')
+  return t ? { Authorization: `Bearer ${t}` } : {}
+}
+
+/** Upload a file to the server (same storage as chat). Posts to the default team room as a file message when successful. */
+export async function uploadFileToServer(file) {
+  const base64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result || '')
+      resolve(result.split(',')[1] || '')
+    }
+    reader.onerror = () => reject(new Error('Could not read file'))
+    reader.readAsDataURL(file)
+  })
+  if (!base64) throw new Error('Empty file')
+  const response = await fetch(`${getServerBaseUrl()}/api/uploads`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({
+      filename: file.name,
+      mimeType: file.type || 'application/octet-stream',
+      data: base64,
+    }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || response.statusText || 'Upload failed')
+  }
+  return data
+}
+
+/** Deletes a server upload. Requires sign-in; no moderator or admin role needed. */
+export async function deleteUploadedFile(fileName) {
+  const safe = String(fileName || '').trim()
+  if (!safe) throw new Error('File name required')
+  const response = await fetch(`${getServerBaseUrl()}/api/uploads/${encodeURIComponent(safe)}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() },
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || response.statusText || 'Delete failed')
+  }
+  return data
 }
 
 export async function fetchBackendHealth() {

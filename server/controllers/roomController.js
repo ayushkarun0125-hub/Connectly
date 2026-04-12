@@ -20,7 +20,10 @@ export function normalizeInviteCode(code) {
     .toUpperCase()
 }
 
-export async function createRoomWithInvite({ name }) {
+/** Built-in rooms that normal users cannot delete from the API. */
+export const PROTECTED_ROOM_IDS = new Set(['room_design', 'room_backend'])
+
+export async function createRoomWithInvite({ name, createdByUserId = null }) {
   const db = getDb()
   const now = new Date().toISOString()
   const displayName = String(name || 'New room').trim() || 'New room'
@@ -30,13 +33,14 @@ export async function createRoomWithInvite({ name }) {
     const inviteCode = randomInviteCode(6)
     try {
       await db.run(
-        'INSERT INTO rooms (id, name, created_at, invite_code) VALUES (?, ?, ?, ?)',
+        'INSERT INTO rooms (id, name, created_at, invite_code, created_by_user_id) VALUES (?, ?, ?, ?, ?)',
         roomId,
         displayName,
         now,
         inviteCode,
+        createdByUserId,
       )
-      return { id: roomId, name: displayName, inviteCode }
+      return { id: roomId, name: displayName, inviteCode, createdByUserId }
     } catch (err) {
       const msg = String(err?.message || '')
       if (msg.includes('UNIQUE') || msg.includes('unique')) continue
@@ -60,9 +64,19 @@ export async function resolveInviteCode(code) {
 export async function getRoomById(roomId) {
   const db = getDb()
   return db.get(
-    'SELECT id, name, invite_code as inviteCode FROM rooms WHERE id = ?',
+    'SELECT id, name, invite_code as inviteCode, created_by_user_id as createdByUserId FROM rooms WHERE id = ?',
     roomId,
   )
+}
+
+export async function deleteRoomCascade(roomId) {
+  const db = getDb()
+  await db.run('DELETE FROM room_pins WHERE room_id = ?', roomId)
+  await db.run('DELETE FROM messages WHERE room_id = ?', roomId)
+  await db.run('DELETE FROM whiteboard_strokes WHERE room_id = ?', roomId)
+  await db.run('DELETE FROM room_members WHERE room_id = ?', roomId)
+  const r = await db.run('DELETE FROM rooms WHERE id = ?', roomId)
+  return r.changes > 0
 }
 
 export async function updateRoomName(roomId, name) {
