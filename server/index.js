@@ -34,7 +34,7 @@ const app = express()
 const server = http.createServer(app)
 
 const port = Number(process.env.PORT || 3001)
-const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173'
+const clientUrl = process.env.CLIENT_URL || 'http://127.0.0.1:5173'
 const jwtSecret = process.env.JWT_SECRET || 'dev_jwt_secret_change_me'
 
 const extraCorsOrigins = (process.env.CORS_ORIGINS || '')
@@ -85,6 +85,11 @@ function corsOriginCallback(origin, callback) {
 
 app.use(cors({ origin: corsOriginCallback }))
 app.use(express.json({ limit: '8mb' }))
+app.use((req, _res, next) => {
+  const origin = req.headers.origin || '-'
+  console.log(`[api] ${req.method} ${req.originalUrl} from=${req.ip} origin=${origin}`)
+  next()
+})
 app.use('/uploads', express.static(path.resolve('data', 'uploads')))
 
 function signToken(payload) {
@@ -193,11 +198,15 @@ if (openPort !== port) {
   console.warn('│ API bound to a different port than PORT — Socket.io will fail     │')
   console.warn('│ unless the client matches. Add to the project root .env:          │')
   console.warn(`│   VITE_SERVER_PORT=${openPort}`)
-  console.warn('│ Or set VITE_SERVER_URL=http://localhost:' + openPort)
+  console.warn('│ Or set VITE_SERVER_URL=http://<host-ip>:' + openPort)
   console.warn('│ (Restart Vite after changing .env.)                                │')
   console.warn('└─────────────────────────────────────────────────────────────────┘')
   console.warn('')
 }
+
+app.get('/', (_req, res) => {
+  res.json({ ok: true, service: 'connectly-server', message: 'Server is running', port: openPort })
+})
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'connectly-server', port: openPort })
@@ -772,7 +781,7 @@ function listLanIpv4() {
 }
 
 server.listen(openPort, '0.0.0.0', () => {
-  console.log(`Connectly server listening on http://localhost:${openPort} (all interfaces)`)
+  console.log(`Connectly server listening on http://127.0.0.1:${openPort} (all interfaces)`)
   const lan = listLanIpv4()
   if (lan.length) {
     console.log('Other devices on your Wi‑Fi/LAN can use:')
