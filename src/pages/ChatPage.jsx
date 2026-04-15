@@ -638,7 +638,7 @@ function ChatPage() {
           ) : null}
         </header>
 
-        <div className="connectly-scroll mx-3 mb-1 flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200/80 bg-slate-100/50 px-2 py-3 dark:border-white/[0.06] dark:bg-[#07111f]/50 md:mx-5">
+        <div className="connectly-scroll mx-3 mb-1 flex min-h-0 flex-1 flex-col overflow-y-auto rounded-2xl border border-slate-200/80 bg-slate-100/50 px-2 py-3 dark:border-white/[0.06] dark:bg-[#07111f]/50 md:mx-5">
           {!messages.length ? (
             <EmptyState
               icon={MessageSquare}

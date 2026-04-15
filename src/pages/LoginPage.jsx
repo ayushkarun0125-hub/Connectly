@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import TravelConnectSignIn from '../components/ui/travel-connect-signin-1'
 import { useAuth } from '../contexts/useAuth'
+import { postAuthDestination } from '../lib/postAuthRedirect'
 
 function LoginPage() {
   const { loading: authLoading, isSignedIn, user, login } = useAuth()
@@ -18,8 +19,7 @@ function LoginPage() {
   }
 
   if (isSignedIn) {
-    const dest = user?.profileCompleted === false ? '/app/profile/setup' : '/app'
-    return <Navigate to={dest} replace />
+    return <Navigate to={postAuthDestination(user)} replace />
   }
 
   async function handleEmailSignIn({ email, password }) {
@@ -27,7 +27,7 @@ function LoginPage() {
     setErrorMessage('')
     try {
       const u = await login(email, password)
-      navigate(u?.profileCompleted === false ? '/app/profile/setup' : '/app', { replace: true })
+      navigate(postAuthDestination(u), { replace: true })
     } catch (error) {
       setErrorMessage(error?.message || 'Sign-in failed')
     } finally {
@@ -44,6 +44,7 @@ function LoginPage() {
       onSubmit={handleEmailSignIn}
       onGoogleSignIn={handleGoogleSignIn}
       onForgotPassword={() => navigate('/forgot-password')}
+      onBackToLanding={() => navigate('/')}
       loading={loading}
       errorMessage={errorMessage}
     />

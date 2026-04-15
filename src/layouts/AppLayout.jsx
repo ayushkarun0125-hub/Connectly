@@ -10,7 +10,7 @@ function AppLayout() {
   const navigate = useNavigate()
   const { user, isSignedIn, logout } = useAuth()
   const role = user?.role ?? 'user'
-  const adminRole = role === 'admin' || role === 'moderator'
+  const staffPortal = role === 'admin' || role === 'moderator'
   const [createModalOpen, setCreateModalOpen] = useState(false)
 
   function handleCreatedRoom(created) {
@@ -29,7 +29,7 @@ function AppLayout() {
         onCreated={handleCreatedRoom}
       />
 
-      <AppSidebar adminRole={adminRole} />
+      <AppSidebar staffPortal={staffPortal} role={role} />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <AppTopbar

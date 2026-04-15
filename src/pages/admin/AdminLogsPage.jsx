@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FilterBar } from '@/components/admin/FilterBar'
-import { ActivityFeed } from '@/components/admin/ActivityFeed'
+import { ActivityFeed } from '@/components/ui/activity-feed'
 import { adminApi } from '@/services/adminApi'
 
 export default function AdminLogsPage() {

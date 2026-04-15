@@ -64,8 +64,8 @@ function ProfilePage() {
               <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 dark:border-white/[0.08] dark:bg-white/[0.03]">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Role access</h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-500">
-                  Admins and moderators unlock the Admin area in the sidebar. Everyone else gets the collaboration
-                  experience only.
+                  Admins use the Admin portal; moderators use the Moderator portal from the sidebar. Everyone else gets
+                  the collaboration experience only.
                 </p>
               </div>
             </div>

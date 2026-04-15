@@ -17,7 +17,7 @@ import { saveFile } from './controllers/fileController.js'
 import { deleteUploadedFile, recordUploadFile } from './controllers/uploadController.js'
 import { ensureDataFiles } from './utils/fileIO.js'
 import { getDb, initDatabase } from './utils/db.js'
-import { seedDefaultAdmin } from './utils/seedAdmin.js'
+import { seedDefaultAdmin, seedDefaultModerator } from './utils/seedAdmin.js'
 import {
   PROTECTED_ROOM_IDS,
   createRoomWithInvite,
@@ -161,6 +161,7 @@ registerSocketHandlers(io)
 await ensureDataFiles()
 await initDatabase()
 await seedDefaultAdmin()
+await seedDefaultModerator()
 
 function isPortFree(portToCheck) {
   return new Promise((resolve) => {

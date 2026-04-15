@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/useAuth'
+import { postAuthDestination } from '../lib/postAuthRedirect'
 import TravelConnectSignup from '../components/ui/travel-connect-signup-1'
 
 function SignupPage() {
@@ -18,8 +19,7 @@ function SignupPage() {
   }
 
   if (isSignedIn) {
-    const dest = user?.profileCompleted === false ? '/app/profile/setup' : '/app'
-    return <Navigate to={dest} replace />
+    return <Navigate to={postAuthDestination(user)} replace />
   }
 
   async function handleSubmit({ displayName, email, password }) {

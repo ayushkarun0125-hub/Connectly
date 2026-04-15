@@ -1,16 +1,13 @@
 import { useState } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/useAuth'
+import { postAuthDestination } from '../lib/postAuthRedirect'
 import ActionButton from '../components/connectly/ActionButton'
 import ConnectlyPanel from '../components/connectly/ConnectlyPanel'
 
 function ProfileSetupPage() {
   const { user, loading, isSignedIn, updateProfile } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
-  const from = location.state?.from && String(location.state.from).startsWith('/app')
-    ? location.state.from
-    : '/app'
 
   const [displayName, setDisplayName] = useState(user?.displayName || '')
   const [bio, setBio] = useState(user?.bio || '')
@@ -30,7 +27,7 @@ function ProfileSetupPage() {
   }
 
   if (user?.profileCompleted) {
-    return <Navigate to="/app" replace />
+    return <Navigate to={postAuthDestination(user)} replace />
   }
 
   async function handleSubmit(e) {
@@ -38,8 +35,8 @@ function ProfileSetupPage() {
     setBusy(true)
     setError('')
     try {
-      await updateProfile({ displayName: displayName.trim(), bio: bio.trim() })
-      navigate(from, { replace: true })
+      const nextUser = await updateProfile({ displayName: displayName.trim(), bio: bio.trim() })
+      navigate(postAuthDestination(nextUser), { replace: true })
     } catch (err) {
       setError(err?.message || 'Could not save profile')
     } finally {

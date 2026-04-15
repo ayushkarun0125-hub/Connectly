@@ -2,7 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import PublicLayout from '../layouts/PublicLayout'
 import AppLayout from '../layouts/AppLayout'
 import ProtectedRoute from './ProtectedRoute'
-import RoleGate from './RoleGate'
+import AdminOnlyGate from './AdminOnlyGate'
+import ModeratorOnlyGate from './ModeratorOnlyGate'
 import LandingPage from '../pages/LandingPage'
 import LoginPage from '../pages/LoginPage'
 import SignupPage from '../pages/SignupPage'
@@ -16,6 +17,7 @@ import FilesPage from '../pages/FilesPage'
 import ProfilePage from '../pages/ProfilePage'
 import SettingsPage from '../pages/SettingsPage'
 import AdminLayout from '../layouts/AdminLayout'
+import ModeratorLayout from '../layouts/ModeratorLayout'
 import AdminOverviewPage from '../pages/admin/AdminOverviewPage'
 import AdminSystemPage from '../pages/admin/AdminSystemPage'
 import AdminUsersPage from '../pages/admin/AdminUsersPage'
@@ -31,6 +33,7 @@ import LoginPreviewPage from '../pages/LoginPreviewPage'
 import RoomDirectoryPage from '../pages/RoomDirectoryPage'
 import TeamPage from '../pages/TeamPage'
 import RequireProfileComplete from './RequireProfileComplete'
+import AdminPortalGate from './AdminPortalGate'
 import ProfileSetupPage from '../pages/ProfileSetupPage'
 
 function AppRouter() {
@@ -48,26 +51,28 @@ function AppRouter() {
       <Route element={<ProtectedRoute />}>
         <Route path="/app/profile/setup" element={<ProfileSetupPage />} />
         <Route element={<RequireProfileComplete />}>
-          <Route path="/app" element={<AppLayout />}>
-          <Route index element={<DashboardPage />} />
-          <Route path="room-directory" element={<RoomDirectoryPage />} />
-          <Route path="team" element={<TeamPage />} />
-          <Route path="rooms/join" element={<JoinRoomPage />} />
-          <Route path="rooms/room_general" element={<Navigate to="/app/rooms/room_design" replace />} />
-          <Route path="rooms/room_general/whiteboard" element={<Navigate to="/app/rooms/room_design/whiteboard" replace />} />
-          <Route path="rooms/:roomId" element={<ChatPage />} />
-          <Route path="rooms/:roomId/whiteboard" element={<WhiteboardPage />} />
-          <Route path="files" element={<FilesPage />} />
-          <Route path="notes" element={<NotesPage />} />
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="settings" element={<SettingsPage />} />
+          <Route element={<AdminPortalGate />}>
+            <Route path="/app" element={<AppLayout />}>
+              <Route index element={<DashboardPage />} />
+              <Route path="room-directory" element={<RoomDirectoryPage />} />
+              <Route path="team" element={<TeamPage />} />
+              <Route path="rooms/join" element={<JoinRoomPage />} />
+              <Route path="rooms/room_general" element={<Navigate to="/app/rooms/room_design" replace />} />
+              <Route path="rooms/room_general/whiteboard" element={<Navigate to="/app/rooms/room_design/whiteboard" replace />} />
+              <Route path="rooms/:roomId" element={<ChatPage />} />
+              <Route path="rooms/:roomId/whiteboard" element={<WhiteboardPage />} />
+              <Route path="files" element={<FilesPage />} />
+              <Route path="notes" element={<NotesPage />} />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="settings" element={<SettingsPage />} />
+            </Route>
           </Route>
           <Route
             path="app/admin"
             element={(
-              <RoleGate roles={['admin', 'moderator']}>
+              <AdminOnlyGate>
                 <AdminLayout />
-              </RoleGate>
+              </AdminOnlyGate>
             )}
           >
             <Route index element={<AdminOverviewPage />} />
@@ -80,6 +85,23 @@ function AppRouter() {
             <Route path="logs" element={<AdminLogsPage />} />
             <Route path="roles" element={<AdminRolesPage />} />
             <Route path="settings" element={<AdminSettingsPage />} />
+          </Route>
+          <Route
+            path="app/moderator"
+            element={(
+              <ModeratorOnlyGate>
+                <ModeratorLayout />
+              </ModeratorOnlyGate>
+            )}
+          >
+            <Route
+              index
+              element={<AdminOverviewPage variant="moderator" portalBase="/app/moderator" />}
+            />
+            <Route path="users" element={<AdminUsersPage />} />
+            <Route path="rooms" element={<AdminRoomsPage />} />
+            <Route path="moderation" element={<AdminModerationPage />} />
+            <Route path="files" element={<AdminFilesPage />} />
           </Route>
         </Route>
       </Route>

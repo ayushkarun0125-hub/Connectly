@@ -8,6 +8,7 @@ import {
   Users,
   Settings,
   Shield,
+  Gavel,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { isChatShellActive } from './navUtils'
@@ -38,7 +39,7 @@ const base =
 const active = `${base} bg-blue-500/15 text-blue-700 shadow-[0_0_24px_-6px_rgba(59,130,246,0.45)] ring-1 ring-blue-400/30 dark:text-blue-100 dark:shadow-[0_0_24px_-6px_rgba(59,130,246,0.55)] dark:ring-blue-400/25`
 const idle = `${base} text-slate-600 hover:bg-slate-200/80 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-200`
 
-function AppSidebar({ adminRole = false }) {
+function AppSidebar({ staffPortal = false, role = 'user' }) {
   const { pathname } = useLocation()
 
   function linkClass(item) {
@@ -85,15 +86,29 @@ function AppSidebar({ adminRole = false }) {
             </ul>
           </div>
         ))}
-        {adminRole ? (
+        {staffPortal ? (
           <div>
             <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-500">
-              Admin
+              Staff
             </p>
-            <NavLink to="/app/admin" className={({ isActive }) => cn(isActive ? active : idle)}>
-              <Shield className="h-[18px] w-[18px] shrink-0 opacity-90" strokeWidth={1.75} />
-              <span>Admin</span>
-            </NavLink>
+            <ul className="space-y-1">
+              {role === 'admin' ? (
+                <li>
+                  <NavLink to="/app/admin" className={({ isActive }) => cn(isActive ? active : idle)}>
+                    <Shield className="h-[18px] w-[18px] shrink-0 opacity-90" strokeWidth={1.75} />
+                    <span>Admin</span>
+                  </NavLink>
+                </li>
+              ) : null}
+              {role === 'moderator' ? (
+                <li>
+                  <NavLink to="/app/moderator" className={({ isActive }) => cn(isActive ? active : idle)}>
+                    <Gavel className="h-[18px] w-[18px] shrink-0 opacity-90" strokeWidth={1.75} />
+                    <span>Moderator</span>
+                  </NavLink>
+                </li>
+              ) : null}
+            </ul>
           </div>
         ) : null}
       </nav>

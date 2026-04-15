@@ -28,6 +28,12 @@
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  /* Connectly control plane — shared admin/moderator dashboard */
+  --color-dashboard-cyan: #00e5ff;
+  --color-dashboard-purple: #7c3aed;
+  --color-dashboard-amber: #f59e0b;
+  --color-dashboard-success: #22c55e;
 }
 
 * {
@@ -84,6 +90,10 @@ html:not(.dark) {
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --dashboard-glow-cyan: color-mix(in oklab, var(--color-dashboard-cyan) 20%, transparent);
+    --dashboard-glow-purple: color-mix(in oklab, var(--color-dashboard-purple) 18%, transparent);
+    --dashboard-glow-amber: color-mix(in oklab, var(--color-dashboard-amber) 22%, transparent);
+    --dashboard-glow-success: color-mix(in oklab, var(--color-dashboard-success) 25%, transparent);
   }
 
   .dark {
@@ -114,6 +124,10 @@ html:not(.dark) {
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --dashboard-glow-cyan: color-mix(in oklab, var(--color-dashboard-cyan) 20%, transparent);
+    --dashboard-glow-purple: color-mix(in oklab, var(--color-dashboard-purple) 18%, transparent);
+    --dashboard-glow-amber: color-mix(in oklab, var(--color-dashboard-amber) 22%, transparent);
+    --dashboard-glow-success: color-mix(in oklab, var(--color-dashboard-success) 25%, transparent);
   }
 
   * {

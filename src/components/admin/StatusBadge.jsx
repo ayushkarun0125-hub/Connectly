@@ -8,7 +8,7 @@ const variants = {
   info: 'border-sky-500/40 bg-sky-500/10 text-sky-200 shadow-[0_0_12px_-2px_rgba(14,165,233,0.25)]',
 }
 
-export function StatusBadge({ children, variant = 'neutral', pulse = false, className }) {
+export function StatusBadge({ children, variant = 'neutral', pulse = false, className = '' }) {
   return (
     <span
       className={cn(

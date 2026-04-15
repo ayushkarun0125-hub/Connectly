@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowRight, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { motion as m } from "framer-motion";
 const Motion = m;
 
@@ -166,6 +166,7 @@ const SignInCard = ({
   onSubmit,
   onGoogleSignIn,
   onForgotPassword,
+  onBackToLanding,
   loading = false,
   errorMessage = "",
 }) => {
@@ -180,8 +181,19 @@ const SignInCard = ({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="flex w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl"
+        className="relative flex w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl"
       >
+        {onBackToLanding ? (
+          <button
+            type="button"
+            onClick={onBackToLanding}
+            className="absolute left-3 top-3 z-20 inline-flex items-center gap-2 rounded-lg border border-slate-700/80 bg-slate-900/90 px-3 py-2 text-sm font-medium text-slate-300 shadow-sm backdrop-blur-sm transition-colors hover:border-slate-600 hover:bg-slate-800 hover:text-white md:left-4 md:top-4"
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0" strokeWidth={2} />
+            <span className="hidden sm:inline">Back to home</span>
+            <span className="sm:hidden">Back</span>
+          </button>
+        ) : null}
         <div className="relative hidden h-[600px] w-1/2 overflow-hidden border-r border-slate-800 md:block">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-800">
             <DotMap />
@@ -201,7 +213,12 @@ const SignInCard = ({
           </div>
         </div>
 
-        <div className="flex w-full flex-col justify-center bg-slate-900 p-8 md:w-1/2 md:p-10">
+        <div
+          className={cn(
+            "flex w-full flex-col justify-center bg-slate-900 p-8 md:w-1/2 md:p-10",
+            onBackToLanding ? "pt-16 sm:pt-14 md:pt-10" : "",
+          )}
+        >
           <Motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <h1 className="mb-1 text-2xl font-bold text-slate-100 md:text-3xl">Welcome back</h1>
             <p className="mb-8 text-slate-400">Sign in to your account</p>
@@ -257,7 +274,7 @@ const SignInCard = ({
               {errorMessage ? (
                 <p className="text-sm text-rose-400">{errorMessage}</p>
               ) : null}
-              <div className="mt-6 text-center">
+              <div className="mt-6 flex flex-col items-center gap-3 text-center">
                 <button
                   type="button"
                   onClick={() => onForgotPassword?.()}
@@ -265,6 +282,16 @@ const SignInCard = ({
                 >
                   Forgot password?
                 </button>
+                {onBackToLanding ? (
+                  <button
+                    type="button"
+                    onClick={onBackToLanding}
+                    className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-slate-300"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} />
+                    Back to landing page
+                  </button>
+                ) : null}
               </div>
             </form>
           </Motion.div>
