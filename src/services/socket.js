@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client'
 import { getServerBaseUrl } from '@/config/serverUrl'
+import { useConnectionStore } from '@/store/useConnectionStore'
 
 let socketInstance = null
 let socketInstanceUrl = null
@@ -23,10 +24,25 @@ export function getSocket() {
     socketInstanceUrl = url
     socketInstance = io(url, {
       autoConnect: false,
-      // Polling first avoids failures when pure WebSocket upgrade is blocked (proxy, some browsers).
       transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: 12,
+      reconnectionDelay: 800,
+      reconnectionDelayMax: 8000,
+      randomizationFactor: 0.5,
+      timeout: 8000,
       auth: { token: readAuthToken() },
     })
+    const setStatus = useConnectionStore.getState().setStatus
+    const setTransport = useConnectionStore.getState().setTransport
+    socketInstance.on('connect', () => {
+      setStatus('connected')
+      setTransport(socketInstance.io.engine?.transport?.name || 'unknown')
+    })
+    socketInstance.on('connect_error', () => setStatus('degraded'))
+    socketInstance.on('reconnect_attempt', () => setStatus('connecting'))
+    socketInstance.on('reconnect_failed', () => setStatus('degraded'))
+    socketInstance.on('disconnect', () => setStatus('degraded'))
   }
 
   return socketInstance
@@ -34,6 +50,7 @@ export function getSocket() {
 
 export function connectSocket() {
   const socket = getSocket()
+  useConnectionStore.getState().setStatus('connecting')
   try {
     const t = readAuthToken()
     socket.auth = { ...socket.auth, token: t }

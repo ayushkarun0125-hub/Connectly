@@ -2,6 +2,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
   MessageSquare,
+  Send,
   LayoutGrid,
   FolderOpen,
   StickyNote,
@@ -13,12 +14,15 @@ import {
 import { cn } from '../../lib/utils'
 import { isChatShellActive } from './navUtils'
 
-const navSections = [
+function buildNavSections(personalRoomId) {
+  const chatsRoute = personalRoomId ? `/app/rooms/${encodeURIComponent(personalRoomId)}` : '/app/rooms/room_design'
+  return [
   {
     label: 'Workspace',
     items: [
       { to: '/app', label: 'Overview', icon: LayoutDashboard, end: true, match: null },
-      { to: '/app/rooms/room_design', label: 'Chats', icon: MessageSquare, end: false, match: 'chats' },
+      { to: chatsRoute, label: 'Chats', icon: MessageSquare, end: false, match: 'chats' },
+      { to: '/app/dm', label: 'Direct Messages', icon: Send, end: true, match: null },
       { to: '/app/room-directory', label: 'Rooms', icon: LayoutGrid, end: true, match: null },
       { to: '/app/files', label: 'Files', icon: FolderOpen, end: true, match: null },
       { to: '/app/notes', label: 'Notes', icon: StickyNote, end: true, match: null },
@@ -32,15 +36,17 @@ const navSections = [
     label: 'Preferences',
     items: [{ to: '/app/settings', label: 'Settings', icon: Settings, end: true, match: null }],
   },
-]
+  ]
+}
 
 const base =
   'group flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium transition-all duration-200'
 const active = `${base} bg-blue-500/15 text-blue-700 shadow-[0_0_24px_-6px_rgba(59,130,246,0.45)] ring-1 ring-blue-400/30 dark:text-blue-100 dark:shadow-[0_0_24px_-6px_rgba(59,130,246,0.55)] dark:ring-blue-400/25`
 const idle = `${base} text-slate-600 hover:bg-slate-200/80 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-200`
 
-function AppSidebar({ staffPortal = false, role = 'user' }) {
+function AppSidebar({ staffPortal = false, role = 'user', personalRoomId = null }) {
   const { pathname } = useLocation()
+  const navSections = buildNavSections(personalRoomId)
 
   function linkClass(item) {
     if (item.match === 'chats') {

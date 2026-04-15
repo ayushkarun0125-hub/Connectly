@@ -1,6 +1,6 @@
 import ChatMessageItem from './connectly/ChatMessageItem'
 
-function MessageFeed({ messages, selfUserId, onPinAttachment }) {
+function MessageFeed({ messages, selfUserId, onPinAttachment, onReportMessage }) {
   return (
     <div className="flex flex-col">
       {messages.map((message, i) => {
@@ -17,6 +17,7 @@ function MessageFeed({ messages, selfUserId, onPinAttachment }) {
             selfUserId={selfUserId}
             compact={compact}
             onPinAttachment={onPinAttachment}
+            onReport={onReportMessage}
           />
         )
       })}

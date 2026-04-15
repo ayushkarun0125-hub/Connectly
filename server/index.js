@@ -20,13 +20,20 @@ import { getDb, initDatabase } from './utils/db.js'
 import { seedDefaultAdmin, seedDefaultModerator } from './utils/seedAdmin.js'
 import {
   PROTECTED_ROOM_IDS,
+  ensurePersonalRoomForUser,
   createRoomWithInvite,
   deleteRoomCascade,
+  grantRoomAccess,
   getRoomById,
   resolveInviteCode,
   updateRoomName,
+  userCanAccessRoom,
 } from './controllers/roomController.js'
 import { registerAdminRoutes } from './routes/adminApi.js'
+import { clearRoomEnforcement, getActiveRoomEnforcement, getUserAccountStatus } from './services/enforcementService.js'
+import { createModerationReport } from './services/reportService.js'
+import { ensureDmConversation, getDmHistory, getUserConversations, isParticipant } from './services/dmService.js'
+import { getUnreadByRoom, markRoomRead } from './services/unreadService.js'
 
 const SERVER_BOOT_AT = Date.now()
 
@@ -92,6 +99,14 @@ app.use((req, _res, next) => {
 })
 app.use('/uploads', express.static(path.resolve('data', 'uploads')))
 
+function shouldSkipApiAuth(reqPath) {
+  return reqPath === '/auth/login' || reqPath === '/auth/signup'
+}
+
+function canBypassProfileGate(user) {
+  return user?.role === 'admin' || user?.role === 'moderator'
+}
+
 function signToken(payload) {
   return jwt.sign(payload, jwtSecret, { expiresIn: '7d' })
 }
@@ -110,9 +125,14 @@ function formatUser(row) {
     id: row.id,
     email: row.email,
     displayName: row.displayName ?? row.display_name ?? '',
+    username: row.username ?? '',
+    avatarUrl: row.avatarUrl ?? row.avatar_url ?? '',
+    interest: row.interest ?? '',
     role: row.role,
     bio: row.bio ?? '',
     profileCompleted,
+    personalRoomId: row.personalRoomId ?? row.personal_room_id ?? null,
+    accountStatus: row.accountStatus ?? row.account_status ?? 'active',
   }
 }
 
@@ -123,7 +143,9 @@ async function getAuthUser(req) {
     const payload = jwt.verify(token, jwtSecret)
     const db = getDb()
     const row = await db.get(
-      'SELECT id, email, display_name as displayName, role, bio, profile_completed as profileCompleted FROM users WHERE id = ?',
+      `SELECT id, email, display_name as displayName, username, avatar_url as avatarUrl, interest,
+       role, bio, profile_completed as profileCompleted, personal_room_id as personalRoomId,
+       account_status as accountStatus FROM users WHERE id = ?`,
       payload.sub,
     )
     return formatUser(row)
@@ -132,6 +154,30 @@ async function getAuthUser(req) {
   }
 }
 
+app.use('/api', async (req, res, next) => {
+  try {
+    if (shouldSkipApiAuth(req.path)) {
+      next()
+      return
+    }
+    const user = await getAuthUser(req)
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+    req.authUser = user
+    const profileRoute = req.path === '/auth/profile' || req.path === '/auth/me'
+    if (!profileRoute && !canBypassProfileGate(user) && user.profileCompleted === false) {
+      res.status(403).json({ error: 'Complete your profile setup first', code: 'PROFILE_INCOMPLETE' })
+      return
+    }
+    next()
+  } catch (err) {
+    console.error('API auth middleware', err)
+    res.status(500).json({ error: 'Auth middleware failed' })
+  }
+})
+
 const io = new Server(server, {
   cors: {
     origin: corsOriginCallback,
@@ -139,19 +185,45 @@ const io = new Server(server, {
   },
 })
 
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth?.token
     if (!token) {
       socket.accountUserId = null
+      socket.accountStatus = 'active'
+      socket.accountRole = 'user'
+      socket.accountDisplayName = 'Guest'
       next()
       return
     }
     const payload = jwt.verify(token, jwtSecret)
-    socket.accountUserId = String(payload.sub)
+    const uid = String(payload.sub)
+    const db = getDb()
+    const row = await db.get(
+      `SELECT role, account_status as accountStatus, profile_completed as profileCompleted,
+       COALESCE(NULLIF(TRIM(display_name), ''), email, 'User') as displayName
+       FROM users WHERE id = ?`,
+      uid,
+    )
+    const acct = row?.accountStatus || (await getUserAccountStatus(uid))
+    if (acct !== 'active') {
+      next(new Error('Account suspended or banned'))
+      return
+    }
+    if (!canBypassProfileGate({ role: row?.role }) && Number(row?.profileCompleted ?? 1) !== 1) {
+      next(new Error('Complete profile setup before connecting'))
+      return
+    }
+    socket.accountUserId = uid
+    socket.accountStatus = acct
+    socket.accountRole = row?.role || 'user'
+    socket.accountDisplayName = row?.displayName || 'User'
     next()
   } catch {
     socket.accountUserId = null
+    socket.accountStatus = 'active'
+    socket.accountRole = 'user'
+    socket.accountDisplayName = 'Guest'
     next()
   }
 })
@@ -210,7 +282,15 @@ app.get('/', (_req, res) => {
 })
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, service: 'connectly-server', port: openPort })
+  res.json({
+    ok: true,
+    service: 'connectly-server',
+    port: openPort,
+    socket: {
+      connectedClients: io.engine.clientsCount ?? 0,
+      transports: ['polling', 'websocket'],
+    },
+  })
 })
 
 app.post('/api/auth/signup', async (req, res) => {
@@ -272,7 +352,10 @@ app.post('/api/auth/login', async (req, res) => {
     }
     const db = getDb()
     const row = await db.get(
-      'SELECT id, email, password_hash as passwordHash, display_name as displayName, role, bio, profile_completed as profileCompleted, account_status as accountStatus FROM users WHERE email = ?',
+      `SELECT id, email, password_hash as passwordHash, display_name as displayName, username,
+       avatar_url as avatarUrl, interest, role, bio, profile_completed as profileCompleted,
+       personal_room_id as personalRoomId, account_status as accountStatus
+       FROM users WHERE email = ?`,
       email,
     )
     if (!row) {
@@ -311,28 +394,73 @@ app.get('/api/auth/me', async (req, res) => {
 
 app.patch('/api/auth/profile', async (req, res) => {
   try {
-    const user = await getAuthUser(req)
+    const user = req.authUser || (await getAuthUser(req))
     if (!user) {
       res.status(401).json({ error: 'Unauthorized' })
       return
     }
     const rawName = req.body?.displayName
     const rawBio = req.body?.bio
+    const rawUsername = req.body?.username
+    const rawInterest = req.body?.interest
+    const avatarData = typeof req.body?.avatarData === 'string' ? req.body.avatarData : ''
+    const avatarMimeType = typeof req.body?.avatarMimeType === 'string' ? req.body.avatarMimeType : 'image/png'
     const displayName =
       typeof rawName === 'string' ? rawName.trim().slice(0, 80) : user.displayName
     const bio = typeof rawBio === 'string' ? rawBio.trim().slice(0, 500) : user.bio || ''
+    const username =
+      rawUsername === undefined ? String(user.username || '') : normalizeUsername(rawUsername)
+    const interest = typeof rawInterest === 'string' ? rawInterest.trim().slice(0, 80) : user.interest || ''
     if (!displayName) {
       res.status(400).json({ error: 'Display name is required' })
       return
     }
+    if (!username || username.length < 3) {
+      res.status(400).json({ error: 'Username must be at least 3 characters (letters, numbers, ., _, -).' })
+      return
+    }
+    let avatarUrl = String(user.avatarUrl || '')
+    if (avatarData) {
+      try {
+        const saved = await saveFile({
+          filename: `avatar_${user.id}.png`,
+          data: avatarData,
+          mimeType: avatarMimeType,
+        })
+        avatarUrl = `/uploads/${saved}`
+      } catch {
+        res.status(400).json({ error: 'Avatar upload failed. Please try a smaller image.' })
+        return
+      }
+    }
     const db = getDb()
+    const duplicate = await db.get('SELECT id FROM users WHERE username = ? AND id <> ?', username, user.id)
+    if (duplicate) {
+      res.status(409).json({ error: 'That username is already taken' })
+      return
+    }
     await db.run(
-      'UPDATE users SET display_name = ?, bio = ?, profile_completed = 1 WHERE id = ?',
+      `UPDATE users
+       SET display_name = ?, bio = ?, username = ?, avatar_url = ?, interest = ?, profile_completed = 1
+       WHERE id = ?`,
       displayName,
       bio || null,
+      username,
+      avatarUrl || null,
+      interest || null,
       user.id,
     )
-    const next = { ...user, displayName, bio, profileCompleted: true }
+    const personalRoomId = await ensurePersonalRoomForUser({ userId: user.id, displayName })
+    const next = {
+      ...user,
+      displayName,
+      bio,
+      username,
+      avatarUrl,
+      interest,
+      profileCompleted: true,
+      personalRoomId,
+    }
     res.json({ user: next })
   } catch (err) {
     console.error('PATCH /api/auth/profile', err)
@@ -351,23 +479,45 @@ function formatRelativeTime(iso) {
   return new Date(iso).toLocaleDateString()
 }
 
+function normalizeUsername(input) {
+  const value = String(input || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '')
+  return value.slice(0, 32)
+}
+
 app.get('/api/workspace/dashboard', async (req, res) => {
   try {
-    const user = await getAuthUser(req)
+    const user = req.authUser || (await getAuthUser(req))
     if (!user) {
       res.status(401).json({ error: 'Sign in required' })
       return
     }
     const db = getDb()
-    const roomRows = await db.all(`
-      SELECT r.id, r.name,
-        (SELECT m.content FROM messages m WHERE m.room_id = r.id ORDER BY datetime(m.timestamp) DESC LIMIT 1) AS lastMsg,
-        (SELECT COUNT(DISTINCT m.user_id) FROM messages m WHERE m.room_id = r.id) AS chatterCount,
-        (SELECT COUNT(*) FROM room_members rm WHERE rm.room_id = r.id) AS liveCount
-      FROM rooms r
-      WHERE r.archived = 0
-      ORDER BY r.created_at ASC
-    `)
+    const staff = user.role === 'admin' || user.role === 'moderator'
+    const roomRows = staff
+      ? await db.all(`
+          SELECT r.id, r.name,
+            (SELECT m.content FROM messages m WHERE m.room_id = r.id ORDER BY datetime(m.timestamp) DESC LIMIT 1) AS lastMsg,
+            (SELECT COUNT(DISTINCT m.user_id) FROM messages m WHERE m.room_id = r.id) AS chatterCount,
+            (SELECT COUNT(*) FROM room_members rm WHERE rm.room_id = r.id) AS liveCount
+          FROM rooms r
+          WHERE r.archived = 0
+          ORDER BY r.created_at ASC
+        `)
+      : await db.all(
+          `SELECT r.id, r.name,
+            (SELECT m.content FROM messages m WHERE m.room_id = r.id ORDER BY datetime(m.timestamp) DESC LIMIT 1) AS lastMsg,
+            (SELECT COUNT(DISTINCT m.user_id) FROM messages m WHERE m.room_id = r.id) AS chatterCount,
+            (SELECT COUNT(*) FROM room_members rm WHERE rm.room_id = r.id) AS liveCount
+           FROM rooms r
+           JOIN room_access ra ON ra.room_id = r.id
+           WHERE r.archived = 0 AND ra.user_id = ?
+           ORDER BY r.created_at ASC`,
+          user.id,
+        )
+    const unreadState = await getUnreadByRoom(user.id)
     const rooms = roomRows.map((row) => {
       const last = row.lastMsg ? String(row.lastMsg).trim() : ''
       const lastMessage = last ? (last.length > 100 ? `${last.slice(0, 97)}…` : last) : 'No messages yet'
@@ -376,16 +526,24 @@ app.get('/api/workspace/dashboard', async (req, res) => {
       return {
         id: row.id,
         name: row.name,
-        unread: 0,
+        unread: unreadState.perRoom[row.id] || 0,
         lastMessage,
         members: Math.max(chatter, live),
         onlineInRoom: live,
       }
     })
 
-    const memberRows = await db.all(
-      `SELECT id, email, display_name as displayName, role FROM users WHERE account_status = 'active' ORDER BY display_name COLLATE NOCASE ASC`,
-    )
+    const memberRows = staff
+      ? await db.all(
+          `SELECT id, email, display_name as displayName, role
+           FROM users WHERE account_status = 'active'
+           ORDER BY display_name COLLATE NOCASE ASC`,
+        )
+      : await db.all(
+          `SELECT id, email, display_name as displayName, role
+           FROM users WHERE id = ? AND account_status = 'active'`,
+          user.id,
+        )
     const activeUsers = memberRows.map((r) => ({
       id: r.id,
       name: r.displayName || r.email || 'Member',
@@ -393,19 +551,34 @@ app.get('/api/workspace/dashboard', async (req, res) => {
       role: r.role,
     }))
 
-    const fileCountRow = await db.get('SELECT COUNT(*) as n FROM upload_files')
+    const fileCountRow = staff
+      ? await db.get('SELECT COUNT(*) as n FROM upload_files')
+      : await db.get('SELECT COUNT(*) as n FROM upload_files WHERE user_id = ?', String(user.id))
     const sharedFilesCount = Number(fileCountRow?.n) || 0
 
-    const uploadRows = await db.all(`
-      SELECT uf.filename AS name, uf.room_id AS roomId, uf.created_at AS uploadedAt,
-        COALESCE(NULLIF(TRIM(u.display_name), ''), u.email, 'Member') AS sender,
-        COALESCE(r.name, uf.room_id) AS roomLabel
-      FROM upload_files uf
-      LEFT JOIN users u ON u.id = uf.user_id
-      LEFT JOIN rooms r ON r.id = uf.room_id
-      ORDER BY datetime(uf.created_at) DESC
-      LIMIT 8
-    `)
+    const uploadRows = staff
+      ? await db.all(`
+          SELECT uf.filename AS name, uf.room_id AS roomId, uf.created_at AS uploadedAt,
+            COALESCE(NULLIF(TRIM(u.display_name), ''), u.email, 'Member') AS sender,
+            COALESCE(r.name, uf.room_id) AS roomLabel
+          FROM upload_files uf
+          LEFT JOIN users u ON u.id = uf.user_id
+          LEFT JOIN rooms r ON r.id = uf.room_id
+          ORDER BY datetime(uf.created_at) DESC
+          LIMIT 8
+        `)
+      : await db.all(
+          `SELECT uf.filename AS name, uf.room_id AS roomId, uf.created_at AS uploadedAt,
+            COALESCE(NULLIF(TRIM(u.display_name), ''), u.email, 'Member') AS sender,
+            COALESCE(r.name, uf.room_id) AS roomLabel
+           FROM upload_files uf
+           LEFT JOIN users u ON u.id = uf.user_id
+           LEFT JOIN rooms r ON r.id = uf.room_id
+           WHERE uf.user_id = ?
+           ORDER BY datetime(uf.created_at) DESC
+           LIMIT 8`,
+          String(user.id),
+        )
     const recentFiles = uploadRows.map((f) => ({
       id: f.name,
       name: f.name,
@@ -413,14 +586,27 @@ app.get('/api/workspace/dashboard', async (req, res) => {
       roomId: f.roomLabel,
     }))
 
-    const msgRows = await db.all(`
-      SELECT m.id, m.username, m.content, m.type, m.timestamp, m.room_id AS roomId,
-        COALESCE(r.name, m.room_id) AS roomName
-      FROM messages m
-      LEFT JOIN rooms r ON r.id = m.room_id
-      ORDER BY datetime(m.timestamp) DESC
-      LIMIT 12
-    `)
+    const msgRows = staff
+      ? await db.all(`
+          SELECT m.id, m.username, m.content, m.type, m.timestamp, m.room_id AS roomId,
+            COALESCE(r.name, m.room_id) AS roomName
+          FROM messages m
+          LEFT JOIN rooms r ON r.id = m.room_id
+          ORDER BY datetime(m.timestamp) DESC
+          LIMIT 12
+        `)
+      : await db.all(
+          `SELECT m.id, m.username, m.content, m.type, m.timestamp, m.room_id AS roomId,
+            COALESCE(r.name, m.room_id) AS roomName
+           FROM messages m
+           JOIN room_access ra ON ra.room_id = m.room_id
+           LEFT JOIN rooms r ON r.id = m.room_id
+           WHERE ra.user_id = ? AND m.user_id = ?
+           ORDER BY datetime(m.timestamp) DESC
+           LIMIT 12`,
+          String(user.id),
+          String(user.id),
+        )
     const activity = msgRows.map((m) => {
       const isFile = m.type === 'file'
       const target = m.roomName || m.roomId
@@ -438,7 +624,7 @@ app.get('/api/workspace/dashboard', async (req, res) => {
       rooms,
       activeUsers,
       sharedFilesCount,
-      unreadMessagesTotal: 0,
+      unreadMessagesTotal: unreadState.total,
       recentFiles,
       activity,
     })
@@ -448,18 +634,124 @@ app.get('/api/workspace/dashboard', async (req, res) => {
   }
 })
 
-app.get('/api/workspace/members', async (req, res) => {
+app.get('/api/unread', async (req, res) => {
   try {
     const user = await getAuthUser(req)
     if (!user) {
       res.status(401).json({ error: 'Sign in required' })
       return
     }
+    const unread = await getUnreadByRoom(user.id)
+    res.json(unread)
+  } catch (err) {
+    console.error('GET /api/unread', err)
+    res.status(500).json({ error: 'Unread lookup failed' })
+  }
+})
+
+app.post('/api/rooms/:roomId/read', async (req, res) => {
+  try {
+    const user = req.authUser || (await getAuthUser(req))
+    if (!user) {
+      res.status(401).json({ error: 'Sign in required' })
+      return
+    }
+    const allowed = await userCanAccessRoom({ user, roomId: req.params.roomId })
+    if (!allowed) {
+      res.status(403).json({ error: 'Access denied for this room' })
+      return
+    }
+    const state = await markRoomRead({ roomId: req.params.roomId, userId: user.id })
+    res.json(state)
+  } catch (err) {
+    console.error('POST /api/rooms/:roomId/read', err)
+    res.status(500).json({ error: 'Could not mark room read' })
+  }
+})
+
+app.post('/api/reports', async (req, res) => {
+  try {
+    const user = await getAuthUser(req)
+    if (!user) {
+      res.status(401).json({ error: 'Sign in required' })
+      return
+    }
+    const report = await createModerationReport({
+      reporterUserId: user.id,
+      type: req.body?.type,
+      roomId: req.body?.roomId ? String(req.body.roomId) : null,
+      reason: req.body?.reason,
+      note: req.body?.note,
+      messageId: req.body?.messageId ? String(req.body.messageId) : null,
+      fileId: req.body?.fileId ? String(req.body.fileId) : null,
+      targetUserId: req.body?.targetUserId ? String(req.body.targetUserId) : null,
+    })
+    io.emit('moderation-report-created', report)
+    res.status(201).json(report)
+  } catch (err) {
+    const message = err?.message || 'Report could not be created'
+    const status = /already reported|Invalid report type|Missing report target|Reason is required/.test(message)
+      ? 400
+      : 500
+    if (status === 500) console.error('POST /api/reports', err)
+    res.status(status).json({ error: message })
+  }
+})
+
+app.get('/api/rooms/:roomId/enforcement/:userId', async (req, res) => {
+  try {
+    const actor = await getAuthUser(req)
+    if (!actor || !['admin', 'moderator'].includes(actor.role)) {
+      res.status(403).json({ error: 'Admin or moderator access required' })
+      return
+    }
+    const enforcement = await getActiveRoomEnforcement(req.params.roomId, req.params.userId)
+    res.json({ enforcement })
+  } catch (err) {
+    console.error('GET /api/rooms/:roomId/enforcement/:userId', err)
+    res.status(500).json({ error: 'Could not load enforcement' })
+  }
+})
+
+app.post('/api/rooms/:roomId/enforcement/clear', async (req, res) => {
+  try {
+    const actor = await getAuthUser(req)
+    if (!actor || !['admin', 'moderator'].includes(actor.role)) {
+      res.status(403).json({ error: 'Admin or moderator access required' })
+      return
+    }
+    const targetUserId = String(req.body?.targetUserId || '').trim()
+    if (!targetUserId) {
+      res.status(400).json({ error: 'targetUserId is required' })
+      return
+    }
+    const ok = await clearRoomEnforcement(req.params.roomId, targetUserId)
+    res.json({ ok })
+  } catch (err) {
+    console.error('POST /api/rooms/:roomId/enforcement/clear', err)
+    res.status(500).json({ error: 'Could not clear enforcement' })
+  }
+})
+
+app.get('/api/workspace/members', async (req, res) => {
+  try {
+    const user = req.authUser || (await getAuthUser(req))
+    if (!user) {
+      res.status(401).json({ error: 'Sign in required' })
+      return
+    }
     const db = getDb()
-    const rows = await db.all(
-      `SELECT id, email, display_name as displayName, role, created_at as createdAt, account_status as accountStatus
-       FROM users ORDER BY display_name COLLATE NOCASE ASC`,
-    )
+    const isStaff = user.role === 'admin' || user.role === 'moderator'
+    const rows = isStaff
+      ? await db.all(
+          `SELECT id, email, display_name as displayName, role, created_at as createdAt, account_status as accountStatus
+           FROM users ORDER BY display_name COLLATE NOCASE ASC`,
+        )
+      : await db.all(
+          `SELECT id, email, display_name as displayName, role, created_at as createdAt, account_status as accountStatus
+           FROM users WHERE id = ?`,
+          user.id,
+        )
     res.json({
       members: rows.map((r) => ({
         id: r.id,
@@ -593,7 +885,11 @@ app.post('/api/rooms', async (req, res) => {
   try {
     const rawName = req.body?.name
     const name = typeof rawName === 'string' ? rawName.trim() : ''
-    const creator = await getAuthUser(req)
+    const creator = req.authUser || (await getAuthUser(req))
+    if (!creator) {
+      res.status(401).json({ error: 'Sign in required' })
+      return
+    }
     const room = await createRoomWithInvite({
       name: name || 'New room',
       createdByUserId: creator?.id ?? null,
@@ -642,11 +938,17 @@ app.delete('/api/rooms/:roomId', async (req, res) => {
 
 app.get('/api/rooms/resolve/:code', async (req, res) => {
   try {
+    const user = req.authUser || (await getAuthUser(req))
+    if (!user) {
+      res.status(401).json({ error: 'Sign in required' })
+      return
+    }
     const room = await resolveInviteCode(req.params.code)
     if (!room) {
       res.status(404).json({ error: 'No room matches that code' })
       return
     }
+    await grantRoomAccess({ roomId: room.id, userId: user.id, source: 'invite' })
     res.json(room)
   } catch (err) {
     console.error('GET /api/rooms/resolve', err)
@@ -654,8 +956,76 @@ app.get('/api/rooms/resolve/:code', async (req, res) => {
   }
 })
 
+app.post('/api/dm/conversations', async (req, res) => {
+  try {
+    const user = await getAuthUser(req)
+    if (!user) {
+      res.status(401).json({ error: 'Sign in required' })
+      return
+    }
+    const peerUserId = String(req.body?.peerUserId || '').trim()
+    if (!peerUserId) {
+      res.status(400).json({ error: 'peerUserId is required' })
+      return
+    }
+    const conversationId = await ensureDmConversation(user.id, peerUserId)
+    res.status(201).json({ conversationId })
+  } catch (err) {
+    const msg = err?.message || 'Could not create conversation'
+    const status = /yourself|required/.test(msg) ? 400 : 500
+    if (status === 500) console.error('POST /api/dm/conversations', err)
+    res.status(status).json({ error: msg })
+  }
+})
+
+app.get('/api/dm/conversations', async (req, res) => {
+  try {
+    const user = await getAuthUser(req)
+    if (!user) {
+      res.status(401).json({ error: 'Sign in required' })
+      return
+    }
+    const rows = await getUserConversations(user.id)
+    res.json({ conversations: rows })
+  } catch (err) {
+    console.error('GET /api/dm/conversations', err)
+    res.status(500).json({ error: 'Could not list conversations' })
+  }
+})
+
+app.get('/api/dm/conversations/:id/messages', async (req, res) => {
+  try {
+    const user = await getAuthUser(req)
+    if (!user) {
+      res.status(401).json({ error: 'Sign in required' })
+      return
+    }
+    const cid = req.params.id
+    const member = await isParticipant(cid, user.id)
+    if (!member) {
+      res.status(403).json({ error: 'Access denied' })
+      return
+    }
+    const messages = await getDmHistory(cid)
+    res.json({ messages })
+  } catch (err) {
+    console.error('GET /api/dm/conversations/:id/messages', err)
+    res.status(500).json({ error: 'Could not load conversation history' })
+  }
+})
+
 app.get('/api/rooms/:roomId', async (req, res) => {
   try {
+    const user = req.authUser || (await getAuthUser(req))
+    if (!user) {
+      res.status(401).json({ error: 'Sign in required' })
+      return
+    }
+    const allowed = await userCanAccessRoom({ user, roomId: req.params.roomId })
+    if (!allowed) {
+      res.status(403).json({ error: 'Access denied for this room' })
+      return
+    }
     const row = await getRoomById(req.params.roomId)
     if (!row) {
       res.status(404).json({ error: 'Room not found' })
@@ -670,6 +1040,16 @@ app.get('/api/rooms/:roomId', async (req, res) => {
 
 app.patch('/api/rooms/:roomId', async (req, res) => {
   try {
+    const user = req.authUser || (await getAuthUser(req))
+    if (!user) {
+      res.status(401).json({ error: 'Sign in required' })
+      return
+    }
+    const allowed = await userCanAccessRoom({ user, roomId: req.params.roomId })
+    if (!allowed) {
+      res.status(403).json({ error: 'Access denied for this room' })
+      return
+    }
     const rawName = req.body?.name
     const name = typeof rawName === 'string' ? rawName.trim() : ''
     if (!name) {
@@ -690,6 +1070,16 @@ app.patch('/api/rooms/:roomId', async (req, res) => {
 
 app.get('/api/rooms/:roomId/pins', async (req, res) => {
   try {
+    const user = req.authUser || (await getAuthUser(req))
+    if (!user) {
+      res.status(401).json({ error: 'Sign in required' })
+      return
+    }
+    const allowed = await userCanAccessRoom({ user, roomId: req.params.roomId })
+    if (!allowed) {
+      res.status(403).json({ error: 'Access denied for this room' })
+      return
+    }
     const db = getDb()
     const rows = await db.all(
       `SELECT id, room_id as roomId, message_id as messageId, name, url, sender, pinned_at as pinnedAt
@@ -705,9 +1095,14 @@ app.get('/api/rooms/:roomId/pins', async (req, res) => {
 
 app.post('/api/rooms/:roomId/pins', async (req, res) => {
   try {
-    const user = await getAuthUser(req)
+    const user = req.authUser || (await getAuthUser(req))
     if (!user) {
       res.status(401).json({ error: 'Sign in to pin files' })
+      return
+    }
+    const allowed = await userCanAccessRoom({ user, roomId: req.params.roomId })
+    if (!allowed) {
+      res.status(403).json({ error: 'Access denied for this room' })
       return
     }
     const name = String(req.body?.name || '').trim().slice(0, 240)
@@ -749,9 +1144,14 @@ app.post('/api/rooms/:roomId/pins', async (req, res) => {
 
 app.delete('/api/rooms/:roomId/pins/:pinId', async (req, res) => {
   try {
-    const user = await getAuthUser(req)
+    const user = req.authUser || (await getAuthUser(req))
     if (!user) {
       res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+    const allowed = await userCanAccessRoom({ user, roomId: req.params.roomId })
+    if (!allowed) {
+      res.status(403).json({ error: 'Access denied for this room' })
       return
     }
     const db = getDb()
@@ -828,6 +1228,27 @@ app.post('/api/uploads', async (req, res) => {
 
 app.get('/api/uploads', async (_req, res) => {
   try {
+    const user = _req.authUser || (await getAuthUser(_req))
+    if (!user) {
+      res.status(401).json({ error: 'Sign in required' })
+      return
+    }
+    const isStaff = user.role === 'admin' || user.role === 'moderator'
+    const db = getDb()
+    const uploadRows = isStaff
+      ? await db.all(
+          `SELECT uf.filename as id, uf.filename as name, '/uploads/' || uf.filename as url, uf.created_at as uploadedAt
+           FROM upload_files uf ORDER BY datetime(uf.created_at) DESC`,
+        )
+      : await db.all(
+          `SELECT uf.filename as id, uf.filename as name, '/uploads/' || uf.filename as url, uf.created_at as uploadedAt
+           FROM upload_files uf WHERE uf.user_id = ? ORDER BY datetime(uf.created_at) DESC`,
+          String(user.id),
+        )
+    if (uploadRows.length) {
+      res.json(uploadRows)
+      return
+    }
     const dir = path.resolve('data', 'uploads')
     await fs.mkdir(dir, { recursive: true })
     const names = await fs.readdir(dir)

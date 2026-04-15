@@ -13,6 +13,7 @@ import Modal from '../components/ui/Modal'
 import { addRoomPin, fetchRoomPins, removeRoomPin } from '../services/pinService'
 import { getServerBaseUrl } from '@/config/serverUrl'
 import Skeleton from '../components/ui/Skeleton'
+import { createReport } from '../services/reportService'
 
 const PIN_ROOM_ID = 'room_design'
 
@@ -42,6 +43,9 @@ function FilesPage() {
   const [pinningId, setPinningId] = useState(null)
   const [unpinningId, setUnpinningId] = useState(null)
   const [uploadBusy, setUploadBusy] = useState(false)
+  const [reportFile, setReportFile] = useState(null)
+  const [reportReason, setReportReason] = useState('Spam or abusive content')
+  const [reportBusy, setReportBusy] = useState(false)
   const uploadInputRef = useRef(null)
 
   async function refreshPins() {
@@ -195,6 +199,25 @@ function FilesPage() {
       })
     } finally {
       setDeleteBusy(false)
+    }
+  }
+
+  async function submitFileReport() {
+    if (!reportFile) return
+    setReportBusy(true)
+    try {
+      await createReport({
+        type: 'file',
+        fileId: reportFile.id,
+        roomId: reportFile.room,
+        reason: reportReason,
+      })
+      pushToast({ title: 'Report submitted', description: `${reportFile.name} was reported.` })
+      setReportFile(null)
+    } catch (err) {
+      pushToast({ title: 'Could not report file', description: err?.message || 'Try again.' })
+    } finally {
+      setReportBusy(false)
     }
   }
 
@@ -413,6 +436,16 @@ function FilesPage() {
                         {file.source === 'server' && user ? (
                           <button
                             type="button"
+                            title="Report this file"
+                            onClick={() => setReportFile(file)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-200 transition hover:border-amber-400/50 hover:bg-amber-500/20"
+                          >
+                            Report
+                          </button>
+                        ) : null}
+                        {file.source === 'server' && user ? (
+                          <button
+                            type="button"
                             title="Remove file from server"
                             onClick={() => setDeleteTarget({ name: file.name })}
                             className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-xs font-medium text-rose-200 transition hover:border-rose-400/50 hover:bg-rose-500/20"
@@ -454,6 +487,33 @@ function FilesPage() {
             onClick={confirmDeleteFile}
           >
             {deleteBusy ? 'Removing…' : 'Remove file'}
+          </ActionButton>
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(reportFile)} title="Report file" onClose={() => !reportBusy && setReportFile(null)}>
+        <p className="text-sm text-slate-300">
+          Report <span className="font-mono text-slate-100">{reportFile?.name}</span> to moderators.
+        </p>
+        <label className="mt-3 block">
+          <span className="mb-1 block text-xs text-slate-500">Reason</span>
+          <select
+            value={reportReason}
+            onChange={(e) => setReportReason(e.target.value)}
+            className="w-full rounded-xl border border-white/[0.1] bg-[#07111f] px-3 py-2 text-sm text-white"
+          >
+            <option>Spam or abusive content</option>
+            <option>Sensitive or unsafe content</option>
+            <option>Impersonation or fraud</option>
+            <option>Other policy issue</option>
+          </select>
+        </label>
+        <div className="mt-4 flex justify-end gap-2">
+          <ActionButton variant="ghost" disabled={reportBusy} onClick={() => setReportFile(null)}>
+            Cancel
+          </ActionButton>
+          <ActionButton variant="primary" disabled={reportBusy} onClick={submitFileReport}>
+            {reportBusy ? 'Submitting…' : 'Submit report'}
           </ActionButton>
         </div>
       </Modal>

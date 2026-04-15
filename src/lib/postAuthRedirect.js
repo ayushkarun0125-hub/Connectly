@@ -4,7 +4,7 @@
  */
 export function postAuthDestination(user) {
   if (!user) return '/app'
-  if (user.profileCompleted === false) return '/app/profile/setup'
+  if (user.profileCompleted === false) return '/setup-profile'
   if (user.role === 'admin') return '/app/admin'
   if (user.role === 'moderator') return '/app/moderator'
   return '/app'

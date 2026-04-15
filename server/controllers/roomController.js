@@ -5,6 +5,10 @@ const userRooms = new Map()
 
 const INVITE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
 
+export function buildPersonalRoomId(userId) {
+  return `room_private_${String(userId).replace(/[^a-zA-Z0-9_-]/g, '').slice(-20)}`
+}
+
 function randomInviteCode(length = 6) {
   const bytes = randomBytes(length)
   let out = ''
@@ -40,6 +44,15 @@ export async function createRoomWithInvite({ name, createdByUserId = null }) {
         inviteCode,
         createdByUserId,
       )
+      if (createdByUserId) {
+        await db.run(
+          'INSERT OR IGNORE INTO room_access (room_id, user_id, granted_at, source) VALUES (?, ?, ?, ?)',
+          roomId,
+          String(createdByUserId),
+          now,
+          'owner',
+        )
+      }
       return { id: roomId, name: displayName, inviteCode, createdByUserId }
     } catch (err) {
       const msg = String(err?.message || '')
@@ -48,6 +61,54 @@ export async function createRoomWithInvite({ name, createdByUserId = null }) {
     }
   }
   throw new Error('Could not allocate a unique invite code')
+}
+
+export async function ensurePersonalRoomForUser({ userId, displayName }) {
+  const db = getDb()
+  const now = new Date().toISOString()
+  const roomId = buildPersonalRoomId(userId)
+  const roomName = `${String(displayName || 'My').trim() || 'My'} space`
+  await db.run(
+    `INSERT OR IGNORE INTO rooms (id, name, created_at, archived, created_by_user_id)
+     VALUES (?, ?, ?, 0, ?)`,
+    roomId,
+    roomName,
+    now,
+    String(userId),
+  )
+  await db.run(
+    `INSERT OR IGNORE INTO room_access (room_id, user_id, granted_at, source)
+     VALUES (?, ?, ?, 'personal')`,
+    roomId,
+    String(userId),
+    now,
+  )
+  await db.run('UPDATE users SET personal_room_id = COALESCE(personal_room_id, ?) WHERE id = ?', roomId, String(userId))
+  return roomId
+}
+
+export async function grantRoomAccess({ roomId, userId, source = 'invite' }) {
+  if (!roomId || !userId) return
+  const db = getDb()
+  await db.run(
+    'INSERT OR IGNORE INTO room_access (room_id, user_id, granted_at, source) VALUES (?, ?, ?, ?)',
+    String(roomId),
+    String(userId),
+    new Date().toISOString(),
+    String(source),
+  )
+}
+
+export async function userCanAccessRoom({ user, roomId }) {
+  if (!user || !roomId) return false
+  if (user.role === 'admin' || user.role === 'moderator') return true
+  const db = getDb()
+  const row = await db.get(
+    `SELECT 1 as ok FROM room_access WHERE room_id = ? AND user_id = ?`,
+    String(roomId),
+    String(user.id),
+  )
+  return Boolean(row?.ok)
 }
 
 export async function resolveInviteCode(code) {
@@ -106,14 +167,42 @@ export async function joinRoom({ socketId, roomId, username }) {
 
   await db.run(
     `
-    INSERT OR REPLACE INTO room_members (room_id, socket_id, username, role, joined_at)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO room_members (room_id, socket_id, username, role, joined_at, account_user_id)
+    VALUES (?, ?, ?, ?, ?, ?)
     `,
     roomId,
     socketId,
     username,
     role,
     now,
+    null,
+  )
+  userRooms.set(socketId, roomId)
+  return { role }
+}
+
+export async function joinRoomWithAccount({ socketId, roomId, username, accountUserId }) {
+  const db = getDb()
+  const now = new Date().toISOString()
+  await db.run(
+    'INSERT OR IGNORE INTO rooms (id, name, created_at) VALUES (?, ?, ?)',
+    roomId,
+    roomId,
+    now,
+  )
+  const row = await db.get('SELECT COUNT(*) as count FROM room_members WHERE room_id = ?', roomId)
+  const role = row.count === 0 ? 'admin' : 'member'
+  await db.run(
+    `
+    INSERT OR REPLACE INTO room_members (room_id, socket_id, username, role, joined_at, account_user_id)
+    VALUES (?, ?, ?, ?, ?, ?)
+    `,
+    roomId,
+    socketId,
+    username,
+    role,
+    now,
+    accountUserId || null,
   )
   userRooms.set(socketId, roomId)
   return { role }
@@ -132,11 +221,12 @@ export async function leaveRoom({ socketId, roomId }) {
 export async function getRoomUsers(roomId) {
   const db = getDb()
   const rows = await db.all(
-    'SELECT socket_id, username, role FROM room_members WHERE room_id = ? ORDER BY joined_at ASC',
+    'SELECT socket_id, username, role, account_user_id FROM room_members WHERE room_id = ? ORDER BY joined_at ASC',
     roomId,
   )
   return rows.map((row) => ({
     userId: row.socket_id,
+    accountUserId: row.account_user_id || null,
     username: row.username,
     role: row.role,
   }))

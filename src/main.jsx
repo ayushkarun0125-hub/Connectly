@@ -5,9 +5,6 @@ import App from './App.jsx'
 import { AuthProvider } from './contexts/AuthContext'
 import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 
-localStorage.setItem('connectly-theme', 'dark')
-document.documentElement.classList.add('dark')
-
 const rootEl = document.getElementById('root')
 if (!rootEl) {
   throw new Error('Missing #root element')

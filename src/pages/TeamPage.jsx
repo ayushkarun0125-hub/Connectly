@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Clock, Copy, Link2, Mail, MessageCircle, RotateCcw, Trash2, UserPlus } from 'lucide-react'
 import { motion } from 'framer-motion'
 import PageHeader from '../components/connectly/PageHeader'
@@ -18,8 +18,11 @@ import {
   restoreWorkspaceMember,
 } from '../services/workspaceService'
 import { cn } from '../lib/utils'
+import { createReport } from '../services/reportService'
+import { ensureDmConversation } from '../services/dmService'
 
 function TeamPage() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const pushToast = useAppStore((s) => s.pushToast)
   const [q, setQ] = useState('')
@@ -36,6 +39,8 @@ function TeamPage() {
   const [removeTarget, setRemoveTarget] = useState(null)
   const [removeBusy, setRemoveBusy] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [reportUser, setReportUser] = useState(null)
+  const [reportBusy, setReportBusy] = useState(false)
 
   const canManage = user?.role === 'admin' || user?.role === 'moderator'
   const canAdd = user?.role === 'admin'
@@ -139,6 +144,33 @@ function TeamPage() {
       await loadMembers()
     } catch (e) {
       pushToast({ title: 'Could not restore', description: e?.message || 'Try again.' })
+    }
+  }
+
+  async function submitUserReport() {
+    if (!reportUser?.id) return
+    setReportBusy(true)
+    try {
+      await createReport({
+        type: 'user',
+        targetUserId: reportUser.id,
+        reason: 'Harassment or abuse',
+      })
+      pushToast({ title: 'Report submitted', description: 'Moderators were notified.' })
+      setReportUser(null)
+    } catch (e) {
+      pushToast({ title: 'Could not submit report', description: e?.message || 'Try again.' })
+    } finally {
+      setReportBusy(false)
+    }
+  }
+
+  async function openDirectMessage(member) {
+    try {
+      const data = await ensureDmConversation(member.id)
+      navigate(`/app/dm/${encodeURIComponent(data.conversationId)}`)
+    } catch (e) {
+      pushToast({ title: 'Could not open DM', description: e?.message || 'Try again.' })
     }
   }
 
@@ -313,6 +345,20 @@ function TeamPage() {
                             <MessageCircle className="h-3.5 w-3.5" strokeWidth={2} />
                             Chat in #design
                           </Link>
+                          <button
+                            type="button"
+                            onClick={() => openDirectMessage(member)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-200 transition hover:bg-violet-500/20"
+                          >
+                            DM
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setReportUser(member)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
+                          >
+                            Report user
+                          </button>
                         </div>
                       ) : null}
                       {!canManage && isSelf ? (
@@ -452,6 +498,20 @@ function TeamPage() {
             onClick={confirmRemove}
           >
             {removeBusy ? 'Removing…' : 'Remove'}
+          </ActionButton>
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(reportUser)} title="Report user" onClose={() => !reportBusy && setReportUser(null)}>
+        <p className="text-sm text-slate-300">
+          Report <span className="font-medium text-white">{reportUser?.displayName || reportUser?.email}</span> for moderation review.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <ActionButton variant="ghost" disabled={reportBusy} onClick={() => setReportUser(null)}>
+            Cancel
+          </ActionButton>
+          <ActionButton variant="primary" disabled={reportBusy} onClick={submitUserReport}>
+            {reportBusy ? 'Submitting…' : 'Submit report'}
           </ActionButton>
         </div>
       </Modal>

@@ -17,7 +17,7 @@ function RequireProfileComplete() {
   }
 
   if (user && user.profileCompleted === false) {
-    return <Navigate to="/app/profile/setup" replace state={{ from: location.pathname }} />
+    return <Navigate to="/setup-profile" replace state={{ from: location.pathname }} />
   }
 
   return <Outlet />

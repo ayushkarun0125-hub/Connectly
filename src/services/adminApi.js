@@ -40,6 +40,11 @@ export const adminApi = {
   moderation: () => adminFetch('/api/admin/moderation'),
   resolveReport: (reportId) =>
     adminFetch(`/api/admin/moderation/${encodeURIComponent(reportId)}/resolve`, { method: 'POST' }),
+  updateReportStatus: (reportId, status) =>
+    adminFetch(`/api/admin/moderation/${encodeURIComponent(reportId)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
   analytics: () => adminFetch('/api/admin/analytics'),
   logs: () => adminFetch('/api/admin/logs'),
   getSettings: () => adminFetch('/api/admin/settings'),

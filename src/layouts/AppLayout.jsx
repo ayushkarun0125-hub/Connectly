@@ -12,6 +12,7 @@ function AppLayout() {
   const role = user?.role ?? 'user'
   const staffPortal = role === 'admin' || role === 'moderator'
   const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   function handleCreatedRoom(created) {
     navigate(`/app/rooms/${encodeURIComponent(created.id)}`, {
@@ -22,14 +23,20 @@ function AppLayout() {
   }
 
   return (
-    <div className={`${shellBg} flex min-h-dvh`}>
+    <div className={`${shellBg} flex min-h-dvh bg-background`}>
       <CreateRoomModal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         onCreated={handleCreatedRoom}
       />
 
-      <AppSidebar staffPortal={staffPortal} role={role} />
+      <AppSidebar
+        staffPortal={staffPortal}
+        role={role}
+        personalRoomId={user?.personalRoomId || null}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <AppTopbar
@@ -37,6 +44,7 @@ function AppLayout() {
           isSignedIn={isSignedIn}
           onLogout={logout}
           onCreateRoom={() => setCreateModalOpen(true)}
+          onToggleSidebar={() => setSidebarOpen((v) => !v)}
         />
         <main className="min-h-0 flex-1 overflow-y-auto connectly-scroll p-4 md:p-6">
           <Outlet context={{ openCreateRoom: () => setCreateModalOpen(true) }} />

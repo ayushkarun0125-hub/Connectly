@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 const STORAGE_KEY = 'connectly-auth'
+const THEME_KEY = 'connectly-theme'
 
 function readStoredAuth() {
   try {
@@ -13,10 +14,22 @@ function readStoredAuth() {
 
 const initialAuth = readStoredAuth()
 
+function readStoredTheme() {
+  try {
+    const raw = localStorage.getItem(THEME_KEY)
+    if (raw === 'light' || raw === 'dark') return raw
+  } catch {
+    /* ignore */
+  }
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  }
+  return 'dark'
+}
+
 export const useAppStore = create((set) => ({
   auth: initialAuth || { token: null, user: null },
-  /** App is dark-only; kept for compatibility with hooks that read `theme`. */
-  theme: 'dark',
+  theme: readStoredTheme(),
   toasts: [],
   setAuth: (auth) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(auth))
@@ -27,8 +40,16 @@ export const useAppStore = create((set) => ({
     set({ auth: { token: null, user: null } })
   },
   toggleTheme: () => {
-    localStorage.setItem('connectly-theme', 'dark')
-    set({ theme: 'dark' })
+    set((state) => {
+      const next = state.theme === 'dark' ? 'light' : 'dark'
+      localStorage.setItem(THEME_KEY, next)
+      return { theme: next }
+    })
+  },
+  setTheme: (theme) => {
+    const next = theme === 'light' ? 'light' : 'dark'
+    localStorage.setItem(THEME_KEY, next)
+    set({ theme: next })
   },
   pushToast: (toast) =>
     set((state) => ({

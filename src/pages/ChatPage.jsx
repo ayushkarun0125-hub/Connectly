@@ -120,7 +120,13 @@ function ChatPage() {
   const location = useLocation()
   const { user } = useAuth()
   const role = user?.role ?? 'user'
-  const { roomId = 'room_design' } = useParams()
+  const { roomId: routeRoomId } = useParams()
+  const roomId = routeRoomId || user?.personalRoomId || 'room_design'
+  const defaultRoomIds = useMemo(() => {
+    if (role === 'admin' || role === 'moderator') return DEFAULT_ROOM_IDS
+    if (user?.personalRoomId) return [user.personalRoomId]
+    return []
+  }, [role, user?.personalRoomId])
   const [messages, setMessages] = useState([])
   const [users, setUsers] = useState([])
   const [pinnedFiles, setPinnedFiles] = useState([])
@@ -153,11 +159,11 @@ function ChatPage() {
   }, [roomId])
 
   const sidebarRoomIds = useMemo(() => {
-    const extra = recentRoomIds.filter((id) => !DEFAULT_ROOM_IDS.includes(id))
-    const merged = [...DEFAULT_ROOM_IDS, ...extra]
+    const extra = recentRoomIds.filter((id) => !defaultRoomIds.includes(id))
+    const merged = [...defaultRoomIds, ...extra]
     const withCurrent = roomId && !merged.includes(roomId) ? [roomId, ...merged] : merged
     return withCurrent.filter((id) => !hiddenIds.includes(id))
-  }, [recentRoomIds, roomId, hiddenIds])
+  }, [recentRoomIds, roomId, hiddenIds, defaultRoomIds])
 
   const canDeleteRoom = useMemo(() => {
     return (id) => {
@@ -444,11 +450,11 @@ function ChatPage() {
   }
 
   function fallbackRoomAfterRemoving(excludeId) {
-    const extra = readRecentRoomIds().filter((rid) => rid !== excludeId && !DEFAULT_ROOM_IDS.includes(rid))
-    const merged = [...DEFAULT_ROOM_IDS, ...extra]
+    const extra = readRecentRoomIds().filter((rid) => rid !== excludeId && !defaultRoomIds.includes(rid))
+    const merged = [...defaultRoomIds, ...extra]
     const hidden = readHiddenRoomIds()
     const candidates = merged.filter((rid) => rid !== excludeId && !hidden.includes(rid))
-    return candidates[0] || 'room_design'
+    return candidates[0] || user?.personalRoomId || 'room_design'
   }
 
   function handleRemoveRoomFromSidebar(id) {

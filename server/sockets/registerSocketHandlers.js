@@ -2,14 +2,52 @@ import { createMessage, getRoomHistory, persistMessage } from '../controllers/me
 import { saveFile } from '../controllers/fileController.js'
 import { recordUploadFile } from '../controllers/uploadController.js'
 import { addStroke, getWhiteboardState } from '../controllers/whiteboardController.js'
-import { getRoomUsers, getUserRoom, joinRoom, leaveRoom } from '../controllers/roomController.js'
+import { getRoomUsers, getUserRoom, joinRoomWithAccount, leaveRoom, userCanAccessRoom } from '../controllers/roomController.js'
+import { createRoomEnforcement, getActiveRoomEnforcement } from '../services/enforcementService.js'
+import { ensureDmConversation, getDmHistory, isParticipant } from '../services/dmService.js'
 
 export default function registerSocketHandlers(io) {
   io.on('connection', (socket) => {
+    async function denyRoomJoin(roomId, enforcement) {
+      socket.emit('room-join-denied', {
+        roomId,
+        reason: enforcement?.reason || 'You cannot join this room right now.',
+        until: enforcement?.expiresAt || null,
+      })
+    }
+
     socket.on('join-room', async ({ roomId, username }) => {
       if (!roomId || !username) return
+      if (!socket.accountUserId) {
+        await denyRoomJoin(roomId, { reason: 'Sign in required.' })
+        return
+      }
+      if (socket.accountStatus && socket.accountStatus !== 'active') {
+        await denyRoomJoin(roomId, { reason: 'Your account does not have active access.' })
+        return
+      }
+      const canAccess = await userCanAccessRoom({
+        user: { id: socket.accountUserId, role: socket.accountRole || 'user' },
+        roomId,
+      })
+      if (!canAccess) {
+        await denyRoomJoin(roomId, { reason: 'You do not have access to this room.' })
+        return
+      }
+      if (socket.accountUserId) {
+        const enforcement = await getActiveRoomEnforcement(roomId, socket.accountUserId)
+        if (enforcement) {
+          await denyRoomJoin(roomId, enforcement)
+          return
+        }
+      }
       socket.join(roomId)
-      const { role } = await joinRoom({ socketId: socket.id, roomId, username })
+      const { role } = await joinRoomWithAccount({
+        socketId: socket.id,
+        roomId,
+        username,
+        accountUserId: socket.accountUserId || null,
+      })
       const history = await getRoomHistory(roomId)
       socket.emit('room-history', history)
       socket.emit('room-users', await getRoomUsers(roomId))
@@ -29,13 +67,14 @@ export default function registerSocketHandlers(io) {
       const currentUsers = await getRoomUsers(roomId)
       const sender = currentUsers.find((user) => user.userId === socket.id)
       const message = await createMessage({
-        userId: socket.id,
+        userId: socket.accountUserId || socket.id,
         username: sender?.username || 'Anonymous',
         content,
         type,
       })
       await persistMessage(roomId, message)
       io.to(roomId).emit('new-message', message)
+      io.to(roomId).emit('room-unread-updated', { roomId })
     })
 
     socket.on('typing-start', ({ roomId }) => {
@@ -61,7 +100,7 @@ export default function registerSocketHandlers(io) {
       const savedName = await saveFile({ filename, data })
       const sender = (await getRoomUsers(roomId)).find((user) => user.userId === socket.id)
       const message = await createMessage({
-        userId: socket.id,
+        userId: socket.accountUserId || socket.id,
         username: sender?.username || 'Anonymous',
         content: filename,
         type: 'file',
@@ -86,6 +125,136 @@ export default function registerSocketHandlers(io) {
       }
       io.to(roomId).emit('new-message', message)
       io.to(roomId).emit('file-shared', message)
+      io.to(roomId).emit('room-unread-updated', { roomId })
+    })
+
+    socket.on('kick-user', async ({ roomId, targetUserId, reason, note, durationMs }, ack) => {
+      const actorRole = socket.accountRole || 'user'
+      if (!['admin', 'moderator'].includes(actorRole)) {
+        ack?.({ ok: false, error: 'Not allowed' })
+        return
+      }
+      if (!roomId || !targetUserId || !socket.accountUserId) {
+        ack?.({ ok: false, error: 'Invalid payload' })
+        return
+      }
+      if (targetUserId === socket.accountUserId) {
+        ack?.({ ok: false, error: 'Cannot kick yourself' })
+        return
+      }
+      const until =
+        Number.isFinite(Number(durationMs)) && Number(durationMs) > 0
+          ? new Date(Date.now() + Number(durationMs)).toISOString()
+          : new Date(Date.now() + 5 * 60 * 1000).toISOString()
+      await createRoomEnforcement({
+        roomId,
+        targetUserId,
+        actorUserId: socket.accountUserId,
+        action: 'kick',
+        reason: String(reason || 'Removed by moderator').slice(0, 120),
+        note: String(note || '').slice(0, 500),
+        expiresAt: until,
+      })
+      for (const [, client] of io.of('/').sockets) {
+        if (client.accountUserId === targetUserId) {
+          await leaveRoom({ socketId: client.id, roomId })
+          client.leave(roomId)
+          client.emit('room-removed', {
+            roomId,
+            reason: String(reason || 'You were removed from this room'),
+            until,
+            actor: socket.accountUserId,
+          })
+        }
+      }
+      io.to(roomId).emit('room-users', await getRoomUsers(roomId))
+      ack?.({ ok: true, roomId, targetUserId, until })
+    })
+
+    socket.on('ban-user', async ({ roomId, targetUserId, reason, note }, ack) => {
+      const actorRole = socket.accountRole || 'user'
+      if (!['admin', 'moderator'].includes(actorRole)) {
+        ack?.({ ok: false, error: 'Not allowed' })
+        return
+      }
+      if (!roomId || !targetUserId || !socket.accountUserId) {
+        ack?.({ ok: false, error: 'Invalid payload' })
+        return
+      }
+      if (targetUserId === socket.accountUserId) {
+        ack?.({ ok: false, error: 'Cannot ban yourself' })
+        return
+      }
+      await createRoomEnforcement({
+        roomId,
+        targetUserId,
+        actorUserId: socket.accountUserId,
+        action: 'ban',
+        reason: String(reason || 'Banned from room').slice(0, 120),
+        note: String(note || '').slice(0, 500),
+        expiresAt: null,
+      })
+      for (const [, client] of io.of('/').sockets) {
+        if (client.accountUserId === targetUserId) {
+          await leaveRoom({ socketId: client.id, roomId })
+          client.leave(roomId)
+          client.emit('room-removed', {
+            roomId,
+            reason: String(reason || 'You were banned from this room'),
+            until: null,
+            actor: socket.accountUserId,
+          })
+        }
+      }
+      io.to(roomId).emit('room-users', await getRoomUsers(roomId))
+      ack?.({ ok: true, roomId, targetUserId })
+    })
+
+    socket.on('join-dm', async ({ peerUserId, conversationId }, ack) => {
+      if (!socket.accountUserId) {
+        ack?.({ ok: false, error: 'Sign in required' })
+        return
+      }
+      let cid = conversationId
+      if (!cid) {
+        if (!peerUserId) {
+          ack?.({ ok: false, error: 'Missing peer' })
+          return
+        }
+        cid = await ensureDmConversation(socket.accountUserId, peerUserId)
+      }
+      const member = await isParticipant(cid, socket.accountUserId)
+      if (!member) {
+        ack?.({ ok: false, error: 'Access denied' })
+        return
+      }
+      const room = `dm:${cid}`
+      socket.join(room)
+      const history = await getDmHistory(cid)
+      socket.emit('dm-history', { conversationId: cid, messages: history })
+      ack?.({ ok: true, conversationId: cid })
+    })
+
+    socket.on('send-message-dm', async ({ conversationId, content, type }, ack) => {
+      if (!socket.accountUserId || !conversationId || !content) {
+        ack?.({ ok: false, error: 'Invalid payload' })
+        return
+      }
+      const member = await isParticipant(conversationId, socket.accountUserId)
+      if (!member) {
+        ack?.({ ok: false, error: 'Access denied' })
+        return
+      }
+      const message = await createMessage({
+        userId: socket.accountUserId,
+        username: socket.accountDisplayName || 'User',
+        content,
+        type: type || 'text',
+        extra: { conversationId },
+      })
+      await persistMessage(`dm:${conversationId}`, message)
+      io.to(`dm:${conversationId}`).emit('new-message-dm', message)
+      ack?.({ ok: true, message })
     })
 
     socket.on('disconnect', async () => {

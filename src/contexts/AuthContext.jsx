@@ -61,13 +61,13 @@ export function AuthProvider({ children }) {
     return data.user
   }, [])
 
-  const updateProfile = useCallback(async ({ displayName, bio }) => {
+  const updateProfile = useCallback(async ({ displayName, bio, username, interest, avatarData, avatarMimeType }) => {
     const current = token || localStorage.getItem(TOKEN_KEY)
     if (!current) throw new Error('Not signed in')
     const response = await fetch(`${getServerBaseUrl()}/api/auth/profile`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${current}` },
-      body: JSON.stringify({ displayName, bio }),
+      body: JSON.stringify({ displayName, bio, username, interest, avatarData, avatarMimeType }),
     })
     const data = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(data?.error || 'Update failed')

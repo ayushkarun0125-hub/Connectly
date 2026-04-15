@@ -35,11 +35,12 @@ export async function persistMessage(roomId, message) {
   const db = getDb()
   await db.run(
     `
-    INSERT INTO messages (id, room_id, user_id, username, content, type, timestamp)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO messages (id, room_id, conversation_id, user_id, username, content, type, timestamp)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `,
     message.id,
-    roomId,
+    roomId || null,
+    message.conversationId || null,
     message.userId,
     message.username,
     message.content,

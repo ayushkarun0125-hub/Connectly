@@ -51,7 +51,7 @@ async function listModerationReports(db, { limit = 100, status = null } = {}) {
 }
 
 async function countOpenReports(db) {
-  const row = await db.get(`SELECT COUNT(*) as n FROM moderation_reports WHERE status = 'open'`)
+  const row = await db.get(`SELECT COUNT(*) as n FROM moderation_reports WHERE status IN ('pending', 'reviewing')`)
   return Number(row?.n) || 0
 }
 
@@ -106,7 +106,7 @@ export function registerAdminRoutes(app, { getAuthUser, io, listenPort, serverBo
       const totalRooms = (await db.get('SELECT COUNT(*) as n FROM rooms WHERE archived = 0')).n
       const totalMessages = (await db.get('SELECT COUNT(*) as n FROM messages')).n
       const reportedOpen = await countOpenReports(db)
-      const previewRows = await listModerationReports(db, { limit: 4, status: 'open' })
+      const previewRows = await listModerationReports(db, { limit: 4, status: 'pending' })
 
       const recentUsers = await db.all(
         `SELECT id, email, display_name as displayName, role, created_at as createdAt FROM users ORDER BY created_at DESC LIMIT 5`,
@@ -407,7 +407,8 @@ export function registerAdminRoutes(app, { getAuthUser, io, listenPort, serverBo
       const id = req.params.reportId
       const now = new Date().toISOString()
       const result = await db.run(
-        `UPDATE moderation_reports SET status = 'resolved', resolved_at = ? WHERE id = ? AND status = 'open'`,
+        `UPDATE moderation_reports SET status = 'resolved', resolved_at = ?, updated_at = ? WHERE id = ? AND status IN ('pending', 'reviewing')`,
+        now,
         now,
         id,
       )
@@ -424,6 +425,41 @@ export function registerAdminRoutes(app, { getAuthUser, io, listenPort, serverBo
     } catch (err) {
       console.error('POST /api/admin/moderation/:reportId/resolve', err)
       res.status(500).json({ error: 'Resolve failed' })
+    }
+  })
+
+  app.patch('/api/admin/moderation/:reportId/status', requireElevated, async (req, res) => {
+    try {
+      const nextStatus = String(req.body?.status || '').trim().toLowerCase()
+      if (!['reviewing', 'resolved', 'dismissed'].includes(nextStatus)) {
+        res.status(400).json({ error: 'Invalid moderation status' })
+        return
+      }
+      const db = getDb()
+      const now = new Date().toISOString()
+      const result = await db.run(
+        `UPDATE moderation_reports
+         SET status = ?, updated_at = ?, resolved_at = CASE WHEN ? IN ('resolved', 'dismissed') THEN ? ELSE resolved_at END
+         WHERE id = ?`,
+        nextStatus,
+        now,
+        nextStatus,
+        now,
+        req.params.reportId,
+      )
+      if (!result.changes) {
+        res.status(404).json({ error: 'Report not found' })
+        return
+      }
+      const row = await db.get(
+        `SELECT id, type, target, room_id, reason, status, created_at, resolved_at FROM moderation_reports WHERE id = ?`,
+        req.params.reportId,
+      )
+      pushActivity({ type: 'moderation', message: `Report ${req.params.reportId} moved to ${nextStatus}` })
+      res.json(mapReportRow(row))
+    } catch (err) {
+      console.error('PATCH /api/admin/moderation/:reportId/status', err)
+      res.status(500).json({ error: 'Status update failed' })
     }
   })
 
