@@ -166,7 +166,7 @@ export default function AdminOverviewPage({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, ease: dashboardEase }}
-      className="space-y-12 pb-10 pt-2"
+      className="space-y-10 pb-10 pt-2 md:space-y-11"
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -178,20 +178,20 @@ export default function AdminOverviewPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-2 rounded-full border border-dashboard-success/35 bg-dashboard-success/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-100 shadow-[0_0_28px_-8px_var(--dashboard-glow-success)]">
-            <span className="relative flex h-2 w-2">
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-500/[0.12] px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-50 shadow-[0_0_26px_-8px_rgba(34,197,94,0.5)] ring-1 ring-emerald-400/25">
+            <span className="relative flex h-2.5 w-2.5">
               {socketOk ? (
                 <>
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-dashboard-success opacity-45" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-dashboard-success shadow-[0_0_12px_var(--dashboard-glow-success)]" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.65)]" />
                 </>
               ) : (
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-dashboard-amber shadow-[0_0_10px_var(--dashboard-glow-amber)]" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.45)]" />
               )}
             </span>
             Socket {socketOk ? 'live' : 'reconnecting'}
           </span>
-          <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[11px] font-medium text-slate-400 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
+          <span className="rounded-full border border-white/[0.1] bg-[#060b14]/55 px-3.5 py-1.5 text-[11px] font-medium text-slate-400 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-sm">
             SQLite primary
           </span>
         </div>
@@ -201,14 +201,13 @@ export default function AdminOverviewPage({
         <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">{err}</div>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Total users"
           value={stats ? String(tu) : '—'}
           hint="Registered workspace accounts"
           icon={Users}
           delay={0}
-          trendUp="+3.8%"
           sparkline={sparkFromStat(tu)}
         />
         <StatCard
@@ -217,7 +216,6 @@ export default function AdminOverviewPage({
           hint="Not suspended or banned"
           icon={Activity}
           delay={0.05}
-          trendUp="+1.2%"
           sparkline={sparkFromStat(au + 3)}
         />
         <StatCard
@@ -226,7 +224,6 @@ export default function AdminOverviewPage({
           hint="Non-archived chat spaces"
           icon={Radio}
           delay={0.1}
-          trendDown="-0.4%"
           sparkline={sparkFromStat(ar + 11)}
         />
         <StatCard
@@ -239,26 +236,26 @@ export default function AdminOverviewPage({
         />
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-12 lg:gap-10">
-        <div className="space-y-8 lg:col-span-7">
+      <div className="grid gap-7 lg:grid-cols-12 lg:gap-9">
+        <div className="space-y-7 lg:col-span-7">
           <SystemHealth services={healthServices} />
           <div
-            className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.045] to-white/[0.02] p-6 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_28px_64px_-36px_rgba(0,0,0,0.75)]"
+            className="rounded-2xl border border-sky-500/10 bg-[#060b14]/72 p-6 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.05)_inset,0_28px_64px_-36px_rgba(0,0,0,0.8)]"
           >
             <div className="mb-5 flex items-center justify-between gap-2">
               <div>
                 <h2 className="text-sm font-semibold text-white">Recent activity</h2>
                 <p className="mt-1 text-xs leading-relaxed text-slate-500">Auth, moderation, and platform events</p>
               </div>
-              <Server className="h-4 w-4 text-dashboard-cyan/70" strokeWidth={1.5} />
+              <Server className="h-4 w-4 text-[#38BDF8]/75" strokeWidth={1.5} />
             </div>
-            <div className="rounded-xl border border-white/[0.05] bg-black/15 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+            <div className="rounded-xl border border-white/[0.07] bg-[#030712]/65 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
               <ActivityFeed items={activity} />
             </div>
           </div>
         </div>
 
-        <div className="space-y-8 lg:col-span-5">
+        <div className="space-y-7 lg:col-span-5">
           <QuickActions
             title="Quick actions"
             subtitle="Shortcuts for daily operations"
@@ -272,16 +269,16 @@ export default function AdminOverviewPage({
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.22, ease: dashboardEase }}
-            className="rounded-2xl border border-white/[0.07] bg-gradient-to-br from-dashboard-cyan/10 via-white/[0.03] to-dashboard-purple/10 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]"
+            className="rounded-2xl border border-sky-500/12 bg-gradient-to-br from-[#38BDF8]/10 via-[#060b14]/80 to-[#1D4ED8]/10 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.05)_inset]"
           >
-            <div className="flex items-center gap-2 text-dashboard-amber/95">
+            <div className="flex items-center gap-2 text-amber-200/95">
               <Zap className="h-4 w-4" strokeWidth={1.75} />
               <p className="text-xs font-medium uppercase tracking-wide">Tip</p>
             </div>
             <p className="mt-2 text-sm leading-relaxed text-slate-400">
               Connectly routes realtime traffic over Socket.io. If reports spike, check the WebSocket pill above and
               verify the API host matches your Vite{' '}
-              <code className="rounded-md border border-dashboard-cyan/20 bg-dashboard-cyan/10 px-1.5 py-0.5 text-[11px] text-dashboard-cyan">
+              <code className="rounded-md border border-[#38BDF8]/25 bg-[#38BDF8]/10 px-1.5 py-0.5 text-[11px] text-[#38BDF8]">
                 VITE_SERVER_URL
               </code>
               .

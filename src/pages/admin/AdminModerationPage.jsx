@@ -77,7 +77,7 @@ export default function AdminModerationPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Moderation</h1>
-        <p className="mt-1 text-sm text-slate-500">Review queue. Demo items are bundled with the API.</p>
+        <p className="mt-1 text-sm text-slate-500">Review open reports stored in the database.</p>
       </div>
       {err ? <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-200">{err}</div> : null}
       {!open.length && !queue.length ? (

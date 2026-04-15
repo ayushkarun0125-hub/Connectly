@@ -255,7 +255,7 @@ function DashboardPage() {
         >
           <SectionHeader
             title="Recent files"
-            description="Latest uploads shared across rooms (demo + server)"
+            description="Latest uploads recorded for your workspace"
             action={(
               <Link to="/app/files" className="text-sm font-medium text-blue-400 transition hover:text-blue-300">
                 Open files

@@ -100,6 +100,18 @@ export async function initDatabase() {
       message_id TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS moderation_reports (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      target TEXT NOT NULL,
+      room_id TEXT,
+      reason TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      created_at TEXT NOT NULL,
+      resolved_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_moderation_reports_status ON moderation_reports(status);
   `)
 
   const userCols = await db.all(`PRAGMA table_info(users)`)

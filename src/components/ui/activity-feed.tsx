@@ -36,9 +36,8 @@ export function ActivityFeed({ items, className, emptyLabel = 'No recent events.
       initial="hidden"
       animate="show"
       className={cn(
-        'relative space-y-3 pl-1',
-        'before:absolute before:left-[13px] before:top-3 before:h-[calc(100%-20px)] before:w-px',
-        'before:bg-gradient-to-b before:from-dashboard-cyan/35 before:via-white/12 before:to-dashboard-purple/20',
+        'relative space-y-3.5',
+        'before:pointer-events-none before:absolute before:left-[9px] before:top-4 before:h-[calc(100%-2rem)] before:w-px before:bg-gradient-to-b before:from-[#38BDF8]/45 before:via-white/12 before:to-[#1D4ED8]/28',
         className,
       )}
     >

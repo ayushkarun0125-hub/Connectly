@@ -4,13 +4,13 @@ import { dashboardEase } from '@/lib/dashboard-motion'
 import type { DashboardActivityItem } from '@/components/ui/dashboard-activity-types'
 
 const typeTone: Record<string, string> = {
-  auth: 'border-dashboard-purple/35 bg-dashboard-purple/12 text-violet-100 shadow-[0_0_14px_-4px_var(--dashboard-glow-purple)]',
-  admin: 'border-dashboard-cyan/35 bg-dashboard-cyan/10 text-cyan-50 shadow-[0_0_14px_-4px_var(--dashboard-glow-cyan)]',
-  moderation: 'border-dashboard-amber/40 bg-dashboard-amber/12 text-amber-50 shadow-[0_0_14px_-4px_var(--dashboard-glow-amber)]',
+  auth: 'border-[#1D4ED8]/35 bg-[#1D4ED8]/12 text-sky-100 shadow-[0_0_14px_-4px_rgba(29,78,216,0.35)]',
+  admin: 'border-[#38BDF8]/35 bg-[#38BDF8]/10 text-sky-50 shadow-[0_0_14px_-4px_rgba(56,189,248,0.3)]',
+  moderation: 'border-amber-400/35 bg-amber-500/12 text-amber-50 shadow-[0_0_14px_-4px_rgba(245,158,11,0.25)]',
   files: 'border-sky-500/30 bg-sky-500/10 text-sky-100',
-  room: 'border-fuchsia-500/25 bg-fuchsia-500/10 text-fuchsia-100',
+  room: 'border-[#1D4ED8]/25 bg-[#0A1A3A]/40 text-sky-100',
   message: 'border-slate-500/25 bg-slate-500/10 text-slate-200',
-  system: 'border-dashboard-success/30 bg-dashboard-success/10 text-emerald-100 shadow-[0_0_12px_-4px_var(--dashboard-glow-success)]',
+  system: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100 shadow-[0_0_12px_-4px_rgba(34,197,94,0.25)]',
 }
 
 function normalizeType(raw?: string): string {
@@ -50,17 +50,22 @@ export function ActivityItem({ item }: ActivityItemProps) {
         hidden: { opacity: 0, x: -6 },
         show: { opacity: 1, x: 0, transition: { ease: dashboardEase } },
       }}
-      whileHover={{ x: 3 }}
-      className="relative flex gap-3 pl-1"
+      className="relative grid grid-cols-[20px_minmax(0,1fr)] gap-3.5"
     >
-      <span className="relative z-10 mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-gradient-to-br from-dashboard-cyan to-dashboard-purple shadow-[0_0_14px_var(--dashboard-glow-cyan)] ring-2 ring-[#0a0e14]/90" />
+      <div className="relative flex justify-center pt-2">
+        <span
+          className="relative z-10 h-2.5 w-2.5 shrink-0 rounded-full bg-gradient-to-br from-[#38BDF8] to-[#1D4ED8] shadow-[0_0_12px_rgba(56,189,248,0.55)] ring-2 ring-[#050a12]"
+          aria-hidden
+        />
+      </div>
       <motion.div
-        whileHover={{ scale: 1.01 }}
+        whileHover={{ scale: 1.008 }}
         transition={{ duration: 0.2 }}
         className={cn(
-          'min-w-0 flex-1 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3.5 py-3',
-          'shadow-[0_0_0_1px_rgba(255,255,255,0.03)_inset]',
-          'transition-colors hover:border-dashboard-cyan/20 hover:bg-white/[0.055]',
+          'min-w-0 rounded-xl border border-white/[0.08] bg-[#060b14]/65 px-3.5 py-3',
+          'shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]',
+          'backdrop-blur-sm transition-colors',
+          'hover:border-[#38BDF8]/18 hover:bg-[#070d18]/75',
         )}
       >
         <div className="flex flex-wrap items-center gap-2">
@@ -72,7 +77,7 @@ export function ActivityItem({ item }: ActivityItemProps) {
           >
             {badge}
           </span>
-          <span className="font-mono text-[10px] text-slate-500">
+          <span className="font-mono text-[10px] tabular-nums text-slate-500">
             {item.at ? new Date(item.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
           </span>
         </div>

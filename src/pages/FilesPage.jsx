@@ -5,14 +5,13 @@ import ConnectlyPanel from '../components/connectly/ConnectlyPanel'
 import SearchInput from '../components/connectly/SearchInput'
 import SectionHeader from '../components/connectly/SectionHeader'
 import EmptyState from '../components/connectly/EmptyState'
-import { deleteUploadedFile, fetchUploadedFiles } from '../services/chatService'
+import { deleteUploadedFile, fetchUploadedFiles, uploadFileToServer } from '../services/chatService'
 import { useAuth } from '../contexts/useAuth'
 import { useAppStore } from '../store/useAppStore'
 import ActionButton from '../components/connectly/ActionButton'
 import Modal from '../components/ui/Modal'
 import { addRoomPin, fetchRoomPins, removeRoomPin } from '../services/pinService'
 import { getServerBaseUrl } from '@/config/serverUrl'
-import { mockFiles } from '../mock/data'
 import Skeleton from '../components/ui/Skeleton'
 
 const PIN_ROOM_ID = 'room_design'
@@ -200,7 +199,7 @@ function FilesPage() {
   }
 
   const normalized = useMemo(() => {
-    const fromServer = serverFiles.map((f) => ({
+    return serverFiles.map((f) => ({
       id: f.id || f.name,
       name: f.name,
       sender: f.sender || 'Upload',
@@ -211,18 +210,6 @@ function FilesPage() {
       href: f.url?.startsWith('/') ? `${getServerBaseUrl()}${f.url}` : f.url,
       source: 'server',
     }))
-    const fromMock = mockFiles.map((f) => ({
-      id: f.id,
-      name: f.name,
-      sender: f.sender,
-      room: f.roomId,
-      type: extFromName(f.name),
-      uploadedAt: f.uploadedAt,
-      size: null,
-      href: f.preview || null,
-      source: 'demo',
-    }))
-    return [...fromServer, ...fromMock]
   }, [serverFiles])
 
   const filtered = useMemo(() => {
@@ -251,15 +238,7 @@ function FilesPage() {
     href: p.url?.startsWith('/uploads') ? `${getServerBaseUrl()}${p.url}` : p.url,
     room: PIN_ROOM_ID,
   }))
-  const pinned =
-    pinnedFromApi.length > 0
-      ? pinnedFromApi.slice(0, 6)
-      : filtered.filter((f) => /sprint|wireframe/i.test(f.name)).slice(0, 3).map((f) => ({
-          id: f.id,
-          name: f.name,
-          href: f.href,
-          room: '—',
-        }))
+  const pinned = pinnedFromApi.slice(0, 6)
   const recent = filtered.slice(0, 8)
 
   return (

@@ -30,8 +30,8 @@ export function QuickActions({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, delay: 0.08, ease: dashboardEase }}
       className={cn(
-        'rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-xl',
-        'shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_28px_64px_-36px_rgba(0,0,0,0.75)]',
+        'rounded-2xl border border-sky-500/10 bg-[#060b14]/72 p-6 backdrop-blur-xl',
+        'shadow-[0_0_0_1px_rgba(255,255,255,0.05)_inset,0_28px_64px_-36px_rgba(0,0,0,0.8)]',
         className,
       )}
     >
@@ -39,7 +39,7 @@ export function QuickActions({
         <h2 className="text-sm font-semibold text-white">{title}</h2>
         <p className="mt-1 text-xs leading-relaxed text-slate-500">{subtitle}</p>
       </div>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3.5">
         {actions.map((a, i) => (
           <QuickActionCard
             key={a.to + a.label}

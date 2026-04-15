@@ -1,40 +1,52 @@
 import { getServerBaseUrl } from '@/config/serverUrl'
-import { mockFiles, mockRooms, mockUsers } from '../mock/data'
-import { wait } from '../lib/utils'
 import { fetchRoomPins } from './pinService'
 
+function authHeaders() {
+  const t = localStorage.getItem('connectly_jwt')
+  return t ? { Authorization: `Bearer ${t}` } : {}
+}
+
+const emptyDashboard = {
+  rooms: [],
+  activeUsers: [],
+  sharedFilesCount: 0,
+  unreadMessagesTotal: 0,
+  recentFiles: [],
+  activity: [],
+}
+
 export async function fetchDashboard() {
-  await wait(400)
-  return {
-    rooms: mockRooms.map((room, i) => ({
-      ...room,
-      unread: [2, 0, 1][i] ?? 0,
-      onlineInRoom: Math.max(1, Math.min(room.members, Math.round(room.members * 0.55) + 1)),
-    })),
-    activeUsers: mockUsers,
-    sharedFilesCount: mockFiles.length,
-    unreadMessagesTotal: 5,
-    recentFiles: mockFiles,
-    activity: [
-      { id: 'a1', type: 'join', actor: 'Ayush', action: 'joined', target: 'Design', time: '3 min ago' },
-      { id: 'a2', type: 'message', actor: 'Aaryan', action: 'sent a message in', target: 'Design', time: '12 min ago' },
-      { id: 'a3', type: 'file', actor: 'Dhruv', action: 'uploaded', target: 'sprint-notes.pdf', time: '24 min ago' },
-      { id: 'a4', type: 'join', actor: 'Aaryan', action: 'started whiteboard in', target: 'Backend', time: '1 hr ago' },
-    ],
+  try {
+    const response = await fetch(`${getServerBaseUrl()}/api/workspace/dashboard`, {
+      headers: { ...authHeaders() },
+    })
+    if (response.status === 401) {
+      return { ...emptyDashboard }
+    }
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.error || response.statusText || 'Dashboard failed')
+    }
+    return response.json()
+  } catch {
+    return { ...emptyDashboard }
   }
+}
+
+function roomIdToLabel(roomId) {
+  const raw = String(roomId || '').replace(/^room_/, '').replace(/_/g, ' ').trim()
+  return raw || roomId || 'Room'
 }
 
 /**
  * Room shell for UI labels only. Messages, members, and pins come from Socket.io after join-room.
  */
 export async function fetchRoomData(roomId) {
-  await wait(80)
-  const shell =
-    mockRooms.find((item) => item.id === roomId) || {
-      id: roomId,
-      name: roomId.replace(/^room_/, '').replace(/_/g, ' ') || roomId,
-    }
-  let room = { ...shell, inviteCode: null }
+  let room = {
+    id: roomId,
+    name: roomIdToLabel(roomId),
+    inviteCode: null,
+  }
   try {
     const response = await fetch(`${getServerBaseUrl()}/api/rooms/${encodeURIComponent(roomId)}`)
     if (response.ok) {
@@ -47,7 +59,7 @@ export async function fetchRoomData(roomId) {
       }
     }
   } catch {
-    /* keep mock shell */
+    /* keep derived shell */
   }
   const pins = await fetchRoomPins(roomId)
   const pinnedFiles = pins.map((p) => ({
@@ -66,10 +78,8 @@ export async function fetchRoomData(roomId) {
   }
 }
 
-/** @deprecated Prefer fetchUploadedFiles for demo — reads server upload directory */
 export async function fetchFiles() {
-  await wait(300)
-  return mockFiles
+  return fetchUploadedFiles()
 }
 
 export async function fetchUploadedFiles() {
@@ -82,12 +92,7 @@ export async function fetchUploadedFiles() {
   }
 }
 
-function authHeaders() {
-  const t = localStorage.getItem('connectly_jwt')
-  return t ? { Authorization: `Bearer ${t}` } : {}
-}
-
-/** Upload a file to the server (same storage as chat). Posts to the default team room as a file message when successful. */
+/** @deprecated Prefer fetchUploadedFiles for demo — reads server upload directory */
 export async function uploadFileToServer(file) {
   const base64 = await new Promise((resolve, reject) => {
     const reader = new FileReader()

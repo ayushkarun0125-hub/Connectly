@@ -17,9 +17,9 @@ function inferSeverity(type: string): 'low' | 'med' | 'high' {
 }
 
 const severityRing: Record<'low' | 'med' | 'high', string> = {
-  low: 'from-dashboard-amber/15 via-transparent to-dashboard-purple/5',
-  med: 'from-dashboard-amber/30 via-dashboard-amber/5 to-dashboard-purple/15',
-  high: 'from-amber-400/35 via-rose-500/10 to-dashboard-purple/20',
+  low: 'from-amber-400/12 via-transparent to-[#1D4ED8]/8',
+  med: 'from-amber-400/22 via-amber-500/8 to-[#1D4ED8]/10',
+  high: 'from-amber-400/30 via-rose-500/12 to-[#1D4ED8]/12',
 }
 
 const severityBadge: Record<'low' | 'med' | 'high', string> = {
@@ -51,8 +51,8 @@ export function ModerationItem({ item, index }: ModerationItemProps) {
       >
         <div
           className={cn(
-            'rounded-[11px] border border-white/[0.06] bg-[#070a10]/95 px-3.5 py-3',
-            'backdrop-blur-sm transition-colors hover:border-dashboard-amber/25 hover:bg-[#0a0e16]/95',
+            'rounded-[11px] border border-white/[0.07] bg-[#060b12]/92 px-3.5 py-3',
+            'backdrop-blur-sm transition-colors hover:border-amber-400/22 hover:bg-[#070e18]/95',
           )}
         >
           <div className="flex items-center justify-between gap-2">

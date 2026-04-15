@@ -340,6 +340,114 @@ app.patch('/api/auth/profile', async (req, res) => {
   }
 })
 
+function formatRelativeTime(iso) {
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return ''
+  const sec = Math.floor((Date.now() - t) / 1000)
+  if (sec < 45) return 'just now'
+  if (sec < 3600) return `${Math.floor(sec / 60)} min ago`
+  if (sec < 86400) return `${Math.floor(sec / 3600)} hr ago`
+  if (sec < 604800) return `${Math.floor(sec / 86400)} days ago`
+  return new Date(iso).toLocaleDateString()
+}
+
+app.get('/api/workspace/dashboard', async (req, res) => {
+  try {
+    const user = await getAuthUser(req)
+    if (!user) {
+      res.status(401).json({ error: 'Sign in required' })
+      return
+    }
+    const db = getDb()
+    const roomRows = await db.all(`
+      SELECT r.id, r.name,
+        (SELECT m.content FROM messages m WHERE m.room_id = r.id ORDER BY datetime(m.timestamp) DESC LIMIT 1) AS lastMsg,
+        (SELECT COUNT(DISTINCT m.user_id) FROM messages m WHERE m.room_id = r.id) AS chatterCount,
+        (SELECT COUNT(*) FROM room_members rm WHERE rm.room_id = r.id) AS liveCount
+      FROM rooms r
+      WHERE r.archived = 0
+      ORDER BY r.created_at ASC
+    `)
+    const rooms = roomRows.map((row) => {
+      const last = row.lastMsg ? String(row.lastMsg).trim() : ''
+      const lastMessage = last ? (last.length > 100 ? `${last.slice(0, 97)}…` : last) : 'No messages yet'
+      const chatter = Number(row.chatterCount) || 0
+      const live = Number(row.liveCount) || 0
+      return {
+        id: row.id,
+        name: row.name,
+        unread: 0,
+        lastMessage,
+        members: Math.max(chatter, live),
+        onlineInRoom: live,
+      }
+    })
+
+    const memberRows = await db.all(
+      `SELECT id, email, display_name as displayName, role FROM users WHERE account_status = 'active' ORDER BY display_name COLLATE NOCASE ASC`,
+    )
+    const activeUsers = memberRows.map((r) => ({
+      id: r.id,
+      name: r.displayName || r.email || 'Member',
+      email: r.email,
+      role: r.role,
+    }))
+
+    const fileCountRow = await db.get('SELECT COUNT(*) as n FROM upload_files')
+    const sharedFilesCount = Number(fileCountRow?.n) || 0
+
+    const uploadRows = await db.all(`
+      SELECT uf.filename AS name, uf.room_id AS roomId, uf.created_at AS uploadedAt,
+        COALESCE(NULLIF(TRIM(u.display_name), ''), u.email, 'Member') AS sender,
+        COALESCE(r.name, uf.room_id) AS roomLabel
+      FROM upload_files uf
+      LEFT JOIN users u ON u.id = uf.user_id
+      LEFT JOIN rooms r ON r.id = uf.room_id
+      ORDER BY datetime(uf.created_at) DESC
+      LIMIT 8
+    `)
+    const recentFiles = uploadRows.map((f) => ({
+      id: f.name,
+      name: f.name,
+      sender: f.sender,
+      roomId: f.roomLabel,
+    }))
+
+    const msgRows = await db.all(`
+      SELECT m.id, m.username, m.content, m.type, m.timestamp, m.room_id AS roomId,
+        COALESCE(r.name, m.room_id) AS roomName
+      FROM messages m
+      LEFT JOIN rooms r ON r.id = m.room_id
+      ORDER BY datetime(m.timestamp) DESC
+      LIMIT 12
+    `)
+    const activity = msgRows.map((m) => {
+      const isFile = m.type === 'file'
+      const target = m.roomName || m.roomId
+      return {
+        id: m.id,
+        type: isFile ? 'file' : 'message',
+        actor: m.username || 'Someone',
+        action: isFile ? 'shared a file in' : 'sent a message in',
+        target,
+        time: formatRelativeTime(m.timestamp),
+      }
+    })
+
+    res.json({
+      rooms,
+      activeUsers,
+      sharedFilesCount,
+      unreadMessagesTotal: 0,
+      recentFiles,
+      activity,
+    })
+  } catch (err) {
+    console.error('GET /api/workspace/dashboard', err)
+    res.status(500).json({ error: 'Dashboard failed' })
+  }
+})
+
 app.get('/api/workspace/members', async (req, res) => {
   try {
     const user = await getAuthUser(req)

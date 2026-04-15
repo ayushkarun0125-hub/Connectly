@@ -18,8 +18,8 @@ export function SystemHealth({ services, className }: SystemHealthProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, delay: 0.12, ease: dashboardEase }}
       className={cn(
-        'rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-xl',
-        'shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_28px_64px_-36px_rgba(0,0,0,0.75)]',
+        'rounded-2xl border border-sky-500/10 bg-[#060b14]/72 p-6 backdrop-blur-xl',
+        'shadow-[0_0_0_1px_rgba(255,255,255,0.05)_inset,0_28px_64px_-36px_rgba(0,0,0,0.8)]',
         className,
       )}
     >
@@ -28,9 +28,9 @@ export function SystemHealth({ services, className }: SystemHealthProps) {
           <h2 className="text-sm font-semibold tracking-tight text-white">System health</h2>
           <p className="mt-1 text-xs leading-relaxed text-slate-500">Realtime collaboration stack</p>
         </div>
-        <Server className="h-4 w-4 text-dashboard-cyan/80" strokeWidth={1.75} />
+        <Server className="h-4 w-4 text-[#38BDF8]/85" strokeWidth={1.75} />
       </div>
-      <ul className="space-y-0 rounded-xl border border-white/[0.05] bg-black/20 p-1 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+      <ul className="space-y-0 rounded-xl border border-white/[0.06] bg-[#030712]/75 p-1 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
         {services.map((row, i) => (
           <SystemHealthRow key={row.id} row={row} index={i} />
         ))}

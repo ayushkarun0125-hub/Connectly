@@ -20,27 +20,40 @@ const defaultSettings = {
   },
 }
 
-/** In-memory moderation demo queue (no reports table yet). */
-const moderationQueue = [
-  {
-    id: 'rep_1',
-    type: 'message',
-    target: 'msg_sample',
-    roomId: 'room_design',
-    reason: 'Spam pattern detected',
-    status: 'open',
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: 'rep_2',
-    type: 'file',
-    target: 'upload_sample',
-    roomId: 'room_backend',
-    reason: 'User report: inappropriate',
-    status: 'open',
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-  },
-]
+function mapReportRow(row) {
+  if (!row) return null
+  return {
+    id: row.id,
+    type: row.type,
+    target: row.target,
+    roomId: row.room_id || undefined,
+    reason: row.reason,
+    status: row.status,
+    createdAt: row.created_at,
+    resolvedAt: row.resolved_at || undefined,
+  }
+}
+
+async function listModerationReports(db, { limit = 100, status = null } = {}) {
+  if (status) {
+    return db.all(
+      `SELECT id, type, target, room_id, reason, status, created_at, resolved_at
+       FROM moderation_reports WHERE status = ? ORDER BY datetime(created_at) DESC LIMIT ?`,
+      status,
+      limit,
+    )
+  }
+  return db.all(
+    `SELECT id, type, target, room_id, reason, status, created_at, resolved_at
+     FROM moderation_reports ORDER BY datetime(created_at) DESC LIMIT ?`,
+    limit,
+  )
+}
+
+async function countOpenReports(db) {
+  const row = await db.get(`SELECT COUNT(*) as n FROM moderation_reports WHERE status = 'open'`)
+  return Number(row?.n) || 0
+}
 
 const activityRing = []
 const MAX_ACTIVITY = 200
@@ -92,7 +105,8 @@ export function registerAdminRoutes(app, { getAuthUser, io, listenPort, serverBo
       const activeUsers = (await db.get(`SELECT COUNT(*) as n FROM users WHERE account_status = 'active'`)).n
       const totalRooms = (await db.get('SELECT COUNT(*) as n FROM rooms WHERE archived = 0')).n
       const totalMessages = (await db.get('SELECT COUNT(*) as n FROM messages')).n
-      const reportedOpen = moderationQueue.filter((r) => r.status === 'open').length
+      const reportedOpen = await countOpenReports(db)
+      const previewRows = await listModerationReports(db, { limit: 4, status: 'open' })
 
       const recentUsers = await db.all(
         `SELECT id, email, display_name as displayName, role, created_at as createdAt FROM users ORDER BY created_at DESC LIMIT 5`,
@@ -107,7 +121,12 @@ export function registerAdminRoutes(app, { getAuthUser, io, listenPort, serverBo
           totalMessages,
         },
         recentSignups: recentUsers,
-        moderationPreview: moderationQueue.slice(0, 4),
+        moderationPreview: previewRows.map((r) => ({
+          id: r.id,
+          type: r.type,
+          reason: r.reason,
+          roomId: r.room_id || undefined,
+        })),
         activitySample: activityRing.slice(-12).reverse(),
       })
     } catch (err) {
@@ -372,19 +391,40 @@ export function registerAdminRoutes(app, { getAuthUser, io, listenPort, serverBo
   })
 
   app.get('/api/admin/moderation', requireElevated, async (_req, res) => {
-    res.json({ queue: moderationQueue })
+    try {
+      const db = getDb()
+      const rows = await listModerationReports(db, { limit: 200 })
+      res.json({ queue: rows.map((r) => mapReportRow(r)).filter(Boolean) })
+    } catch (err) {
+      console.error('GET /api/admin/moderation', err)
+      res.status(500).json({ error: 'List moderation failed' })
+    }
   })
 
   app.post('/api/admin/moderation/:reportId/resolve', requireElevated, async (req, res) => {
-    const rep = moderationQueue.find((r) => r.id === req.params.reportId)
-    if (!rep) {
-      res.status(404).json({ error: 'Report not found' })
-      return
+    try {
+      const db = getDb()
+      const id = req.params.reportId
+      const now = new Date().toISOString()
+      const result = await db.run(
+        `UPDATE moderation_reports SET status = 'resolved', resolved_at = ? WHERE id = ? AND status = 'open'`,
+        now,
+        id,
+      )
+      if (!result.changes) {
+        res.status(404).json({ error: 'Report not found' })
+        return
+      }
+      const row = await db.get(
+        `SELECT id, type, target, room_id, reason, status, created_at, resolved_at FROM moderation_reports WHERE id = ?`,
+        id,
+      )
+      pushActivity({ type: 'moderation', message: `Report ${id} resolved` })
+      res.json(mapReportRow(row))
+    } catch (err) {
+      console.error('POST /api/admin/moderation/:reportId/resolve', err)
+      res.status(500).json({ error: 'Resolve failed' })
     }
-    rep.status = 'resolved'
-    rep.resolvedAt = new Date().toISOString()
-    pushActivity({ type: 'moderation', message: `Report ${rep.id} resolved` })
-    res.json(rep)
   })
 
   app.get('/api/admin/analytics', requireElevated, async (_req, res) => {
@@ -436,11 +476,7 @@ export function registerAdminRoutes(app, { getAuthUser, io, listenPort, serverBo
   })
 
   app.get('/api/admin/logs', requireElevated, async (_req, res) => {
-    const synthetic = [
-      { type: 'auth', message: 'JWT validation middleware active', at: new Date(serverBootAt).toISOString() },
-      { type: 'system', message: 'SQLite connection pool ready', at: new Date(serverBootAt).toISOString() },
-    ]
-    res.json({ entries: [...activityRing].reverse(), synthetic })
+    res.json({ entries: [...activityRing].reverse() })
   })
 
   app.get('/api/admin/settings', requireElevated, async (_req, res) => {

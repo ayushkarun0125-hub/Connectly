@@ -22,34 +22,31 @@ export function QuickActionCard({ label, description, to, icon: Icon, index }: Q
       <Link
         to={to}
         className={cn(
-          'group relative flex items-center gap-4 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#080d14]/90 px-4 py-4',
-          'shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_16px_40px_-28px_rgba(0,0,0,0.7)]',
-          'transition-[border-color,box-shadow,transform] duration-300',
-          'hover:-translate-y-0.5 hover:border-dashboard-cyan/35',
-          'hover:shadow-[0_0_0_1px_rgba(0,229,255,0.12)_inset,0_28px_56px_-24px_var(--dashboard-glow-cyan),0_0_40px_-12px_var(--dashboard-glow-purple)]',
+          'group relative flex min-h-[4.75rem] items-center gap-4 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#070d16]/88 px-4 py-4',
+          'shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_16px_40px_-28px_rgba(0,0,0,0.72)]',
+          'transition-[border-color,box-shadow,transform] duration-300 ease-out',
+          'hover:-translate-y-1 hover:border-[#38BDF8]/28',
+          'hover:shadow-[0_0_0_1px_rgba(56,189,248,0.12)_inset,0_22px_48px_-20px_rgba(56,189,248,0.14),0_18px_40px_-28px_rgba(29,78,216,0.12)]',
+          'active:translate-y-0 active:scale-[0.99]',
         )}
       >
         <span
           className={cn(
-            'grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-white/10',
-            'bg-gradient-to-br from-dashboard-cyan/15 via-white/[0.04] to-dashboard-purple/10',
-            'text-dashboard-cyan shadow-[0_0_24px_-8px_var(--dashboard-glow-cyan)]',
-            'transition duration-300 group-hover:border-dashboard-cyan/35 group-hover:text-white',
+            'grid h-[3.25rem] w-[3.25rem] shrink-0 place-items-center rounded-xl border border-white/[0.1]',
+            'bg-gradient-to-br from-[#38BDF8]/16 via-white/[0.04] to-[#1D4ED8]/12',
+            'text-[#38BDF8] shadow-[0_0_22px_-8px_rgba(56,189,248,0.35)]',
+            'transition duration-300 group-hover:border-[#38BDF8]/35 group-hover:text-sky-100',
           )}
         >
           <Icon className="h-5 w-5" strokeWidth={1.65} />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 self-center pr-1">
           <p className="text-sm font-semibold text-slate-100 group-hover:text-white">{label}</p>
           {description ? <p className="mt-1 text-xs leading-relaxed text-slate-500 group-hover:text-slate-400">{description}</p> : null}
         </div>
-        <motion.span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-slate-500"
-          whileHover={{ x: 3 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-        >
-          <ChevronRight className="h-4 w-4 transition-colors group-hover:text-dashboard-cyan" strokeWidth={2} />
-        </motion.span>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center self-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-500 transition-transform duration-300 group-hover:translate-x-1 group-hover:border-[#38BDF8]/20 group-hover:text-[#38BDF8]">
+          <ChevronRight className="h-4 w-4" strokeWidth={2} />
+        </span>
       </Link>
     </motion.div>
   )

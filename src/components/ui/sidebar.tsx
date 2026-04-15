@@ -77,22 +77,29 @@ export function AdminDashboardSidebar({
       >
         <div
           className={cn(
-            'border-b border-white/[0.07] px-4 py-5 transition-all',
-            collapsed ? 'px-2.5' : 'px-4',
+            'border-b border-white/[0.1] px-4 py-5 transition-all',
+            collapsed ? 'px-2.5 py-4' : 'px-4',
           )}
         >
-          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-400/85">Connectly</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#38BDF8]/90">Connectly</p>
           {!collapsed ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-1.5">
               <p className="text-lg font-bold tracking-tight text-white">Control Plane</p>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-500">Internal operations</p>
             </motion.div>
           ) : (
-            <p className="mt-2 text-center text-[10px] font-bold text-slate-600">CP</p>
+            <div className="mt-3 flex justify-center">
+              <span
+                className="rounded-lg border border-white/[0.1] bg-white/[0.04] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.2em] text-[#38BDF8]/95 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]"
+                title="Control Plane"
+              >
+                CP
+              </span>
+            </div>
           )}
         </div>
 
-        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden p-2.5">
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden p-2.5">
           {ADMIN_NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
@@ -102,23 +109,28 @@ export function AdminDashboardSidebar({
               className={({ isActive }) =>
                 cn(
                   'group flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-sm font-medium transition-all duration-200',
-                  'hover:translate-x-0.5',
+                  'border border-white/[0.06] bg-white/[0.03] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]',
+                  'hover:translate-x-0.5 hover:border-white/[0.12] hover:bg-white/[0.06]',
                   collapsed && 'justify-center px-2',
                   isActive
-                    ? 'bg-gradient-to-r from-cyan-500/20 via-violet-500/12 to-transparent text-white shadow-[0_0_28px_-10px_rgba(34,211,238,0.45)] ring-1 ring-cyan-500/25'
-                    : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100',
+                    ? 'border-[#38BDF8]/35 bg-gradient-to-r from-[#38BDF8]/20 via-[#1D4ED8]/12 to-white/[0.02] text-white shadow-[0_0_28px_-12px_rgba(56,189,248,0.4)] ring-1 ring-[#38BDF8]/28'
+                    : 'text-slate-400 hover:text-slate-100',
                 )
               }
               title={collapsed ? label : undefined}
             >
-              <Icon
-                className={cn(
-                  'h-[18px] w-[18px] shrink-0 opacity-90 transition group-hover:scale-105',
-                  'group-[.active]:text-cyan-200',
-                )}
-                strokeWidth={1.75}
-              />
-              {!collapsed ? <span className="truncate">{label}</span> : null}
+              {({ isActive }) => (
+                <>
+                  <Icon
+                    className={cn(
+                      'h-[18px] w-[18px] shrink-0 transition group-hover:scale-105',
+                      isActive ? 'text-[#38BDF8]' : 'text-slate-500 group-hover:text-slate-300',
+                    )}
+                    strokeWidth={1.75}
+                  />
+                  {!collapsed ? <span className="truncate">{label}</span> : null}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>

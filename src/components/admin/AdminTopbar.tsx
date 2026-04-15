@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ChevronRight, LogOut, Menu, PanelLeft } from 'lucide-react'
+import { ChevronRight, Home, LogOut, Menu, PanelLeft } from 'lucide-react'
 import { StatusBadge } from './StatusBadge'
 import { useAuth } from '@/contexts/useAuth'
 import { cn } from '@/lib/cn'
@@ -41,8 +41,8 @@ export function AdminTopbar({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        'sticky top-3 z-30 mx-3 flex h-14 shrink-0 items-center justify-between gap-4 rounded-2xl border border-white/[0.09] px-4 shadow-[0_8px_40px_-16px_rgba(0,0,0,0.85)] backdrop-blur-2xl md:mx-6 md:px-5',
-        'bg-[#080c14]/75',
+        'sticky top-2 z-30 mx-3 flex h-[3.25rem] shrink-0 items-center justify-between gap-3 rounded-xl border border-white/[0.1] px-3 shadow-[0_8px_36px_-14px_rgba(0,0,0,0.82)] backdrop-blur-xl md:mx-5 md:gap-4 md:px-4',
+        'bg-[#060b14]/82',
       )}
     >
       <div className="flex min-w-0 items-center gap-2 text-sm">
@@ -70,10 +70,18 @@ export function AdminTopbar({
         <ChevronRight className="hidden h-4 w-4 shrink-0 text-slate-600 sm:block" />
         <span className="truncate font-semibold text-white">{title}</span>
       </div>
-      <div className="flex items-center gap-2 md:gap-3">
+      <div className="flex items-center gap-1.5 md:gap-2.5">
+        <Link
+          to="/"
+          className="hidden items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-medium text-slate-400 transition hover:border-[#38BDF8]/25 hover:bg-white/[0.06] hover:text-[#38BDF8] sm:inline-flex"
+          title="Back to marketing site"
+        >
+          <Home className="h-3.5 w-3.5" strokeWidth={2} />
+          <span className="hidden md:inline">Home</span>
+        </Link>
         <StatusBadge variant={environment === 'production' ? 'danger' : 'info'}>{environment}</StatusBadge>
         <span className="hidden text-xs text-slate-500 md:inline">{user?.email}</span>
-        <span className="rounded-lg bg-gradient-to-br from-cyan-500/15 to-violet-500/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-cyan-100/90 ring-1 ring-white/10">
+        <span className="rounded-lg bg-gradient-to-br from-[#38BDF8]/14 to-[#1D4ED8]/12 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-sky-100/95 ring-1 ring-white/[0.1]">
           {user?.role}
         </span>
         <button
