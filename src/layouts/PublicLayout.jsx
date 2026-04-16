@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../contexts/useAuth'
 import { cn } from '../lib/utils'
 import { postAuthDestination } from '../lib/postAuthRedirect'
+import { SoundButton, useUISounds } from '@/ui-sounds'
 
 const navItems = [
   { to: '/', label: 'Home', end: true },
@@ -16,6 +17,7 @@ const navItems = [
 ]
 
 function PublicNav() {
+  const { playHover, playClick } = useUISounds()
   const { isSignedIn, logout, loading, user } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -51,7 +53,12 @@ function PublicNav() {
           'backdrop-blur-xl backdrop-saturate-150 md:flex-row md:items-center md:justify-between md:gap-4 md:px-8 md:py-4',
         )}
       >
-        <Link to="/" className="shrink-0 text-lg font-semibold tracking-tight text-white transition hover:text-blue-200">
+        <Link
+          to="/"
+          onMouseEnter={() => playHover()}
+          onClick={() => playClick()}
+          className="shrink-0 text-lg font-semibold tracking-tight text-white transition hover:text-blue-200"
+        >
           Connectly
         </Link>
 
@@ -61,6 +68,8 @@ function PublicNav() {
               key={item.to}
               to={item.to}
               end={item.end}
+              onMouseEnter={() => playHover()}
+              onClick={() => playClick()}
               className={({ isActive }) =>
                 cn(
                   'whitespace-nowrap rounded-lg px-2 py-1.5 text-sm transition md:text-[15px]',
@@ -86,12 +95,16 @@ function PublicNav() {
             <>
               <Link
                 to="/login"
+                onMouseEnter={() => playHover()}
+                onClick={() => playClick()}
                 className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-white/[0.06] hover:text-white sm:px-4 md:text-base"
               >
                 Login
               </Link>
               <Link
                 to="/sign-up"
+                onMouseEnter={() => playHover()}
+                onClick={() => playClick()}
                 className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_0_24px_-4px_rgba(37,99,235,0.55)] transition hover:bg-blue-500 sm:px-5 md:px-6 md:text-base"
               >
                 Sign Up
@@ -99,7 +112,7 @@ function PublicNav() {
             </>
           ) : (
             <div className="relative" ref={menuRef}>
-              <button
+              <SoundButton
                 type="button"
                 onClick={() => setMenuOpen((prev) => !prev)}
                 className="grid h-10 w-10 place-items-center overflow-hidden rounded-full border border-white/[0.16] bg-white/[0.04] text-xs font-semibold text-white shadow-[0_0_22px_-10px_rgba(96,165,250,0.7)] transition hover:border-white/[0.24] hover:bg-white/[0.08]"
@@ -110,10 +123,10 @@ function PublicNav() {
                 ) : (
                   initials
                 )}
-              </button>
+              </SoundButton>
               {menuOpen ? (
                 <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-xl border border-white/[0.12] bg-[#0a0f1a]/90 shadow-[0_18px_40px_-14px_rgba(0,0,0,0.75)] backdrop-blur-xl">
-                  <button
+                  <SoundButton
                     type="button"
                     onClick={() => {
                       setMenuOpen(false)
@@ -122,8 +135,8 @@ function PublicNav() {
                     className="block w-full px-3 py-2.5 text-left text-sm text-slate-200 transition hover:bg-white/[0.07]"
                   >
                     Dashboard
-                  </button>
-                  <button
+                  </SoundButton>
+                  <SoundButton
                     type="button"
                     onClick={() => {
                       setMenuOpen(false)
@@ -132,8 +145,8 @@ function PublicNav() {
                     className="block w-full px-3 py-2.5 text-left text-sm text-slate-200 transition hover:bg-white/[0.07]"
                   >
                     Profile / Account
-                  </button>
-                  <button
+                  </SoundButton>
+                  <SoundButton
                     type="button"
                     onClick={() => {
                       setMenuOpen(false)
@@ -143,7 +156,7 @@ function PublicNav() {
                     className="block w-full px-3 py-2.5 text-left text-sm text-rose-300 transition hover:bg-white/[0.07]"
                   >
                     Sign out
-                  </button>
+                  </SoundButton>
                 </div>
               ) : null}
             </div>

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './contexts/AuthContext'
+import { SoundProvider } from './ui-sounds'
 import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 
 const rootEl = document.getElementById('root')
@@ -14,7 +15,9 @@ createRoot(rootEl).render(
   <StrictMode>
     <ErrorBoundary>
       <AuthProvider>
-        <App />
+        <SoundProvider>
+          <App />
+        </SoundProvider>
       </AuthProvider>
     </ErrorBoundary>
   </StrictMode>,

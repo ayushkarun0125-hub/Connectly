@@ -12,6 +12,7 @@ import { useAppStore } from '../store/useAppStore'
 import { useAuth } from '../contexts/useAuth'
 import { Link } from 'react-router-dom'
 import { cn } from '../lib/utils'
+import { SoundButton, useSoundSettings } from '@/ui-sounds'
 
 const schema = z.object({
   currentPassword: z.string().min(6),
@@ -26,6 +27,7 @@ const tabs = [
 ]
 
 function SettingsPage() {
+  const { enabled: uiSoundsEnabled, setEnabled: setUiSoundsEnabled } = useSoundSettings()
   const pushToast = useAppStore((state) => state.pushToast)
   const { user } = useAuth()
   const [tab, setTab] = useState('profile')
@@ -43,7 +45,7 @@ function SettingsPage() {
           {tabs.map((t) => {
             const Icon = t.icon
             return (
-              <button
+              <SoundButton
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
@@ -56,7 +58,7 @@ function SettingsPage() {
               >
                 <Icon className="h-4 w-4 opacity-80" strokeWidth={2} />
                 {t.label}
-              </button>
+              </SoundButton>
             )
           })}
         </nav>
@@ -84,6 +86,20 @@ function SettingsPage() {
                 Connectly is optimized for deep navy surfaces. Use the sun/moon control in the header to switch when you
                 need it.
               </p>
+              <label className="mt-4 flex cursor-pointer items-center justify-between rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm transition hover:border-white/[0.12]">
+                <span>
+                  <span className="block font-medium text-slate-200">UI interaction sounds</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">
+                    Subtle hover and click feedback across buttons and links. Stored in this browser.
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={uiSoundsEnabled}
+                  onChange={(e) => setUiSoundsEnabled(e.target.checked)}
+                  className="accent-blue-500"
+                />
+              </label>
             </ConnectlyPanel>
           )}
 
@@ -93,7 +109,7 @@ function SettingsPage() {
               <div className="space-y-2">
                 {[
                   ['Push notifications', true],
-                  ['Message sounds', true],
+                  ['Message sounds (chat)', true],
                   ['Email digests', false],
                 ].map(([label, def]) => (
                   <label

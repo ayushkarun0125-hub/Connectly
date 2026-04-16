@@ -2,8 +2,10 @@ import { Link } from 'react-router-dom'
 import { Hash, Trash2, PanelRightClose } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '../../lib/utils'
+import { SoundButton, useUISounds } from '@/ui-sounds'
 
 function RoomListItem({ to, label, active, unread = 0, onRemoveFromList, onDelete, canDelete }) {
+  const { playHover, playClick } = useUISounds()
   return (
     <motion.div
       whileHover={{ x: 2 }}
@@ -12,6 +14,8 @@ function RoomListItem({ to, label, active, unread = 0, onRemoveFromList, onDelet
     >
       <Link
         to={to}
+        onMouseEnter={() => playHover()}
+        onClick={() => playClick()}
         className={cn(
           'flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200',
           active
@@ -30,7 +34,7 @@ function RoomListItem({ to, label, active, unread = 0, onRemoveFromList, onDelet
       {(onRemoveFromList || (canDelete && onDelete)) && (
         <div className="flex shrink-0 flex-col justify-center gap-0.5 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 lg:opacity-100">
           {onRemoveFromList ? (
-            <button
+            <SoundButton
               type="button"
               title="Remove from sidebar"
               onClick={(e) => {
@@ -40,10 +44,10 @@ function RoomListItem({ to, label, active, unread = 0, onRemoveFromList, onDelet
               className="rounded-lg p-1.5 text-slate-500 hover:bg-white/10 hover:text-slate-200"
             >
               <PanelRightClose className="h-3.5 w-3.5" strokeWidth={2} />
-            </button>
+            </SoundButton>
           ) : null}
           {canDelete && onDelete ? (
-            <button
+            <SoundButton
               type="button"
               title="Delete room"
               onClick={(e) => {
@@ -53,7 +57,7 @@ function RoomListItem({ to, label, active, unread = 0, onRemoveFromList, onDelet
               className="rounded-lg p-1.5 text-rose-400/90 hover:bg-rose-500/15 hover:text-rose-200"
             >
               <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
-            </button>
+            </SoundButton>
           ) : null}
         </div>
       )}

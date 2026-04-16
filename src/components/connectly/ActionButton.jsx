@@ -1,4 +1,5 @@
 import { cn } from '../../lib/utils'
+import { SoundButton } from '@/ui-sounds'
 
 const variants = {
   primary:
@@ -16,7 +17,7 @@ function ActionButton({ variant = 'secondary', className, size = 'md', children,
     lg: 'rounded-2xl px-5 py-3 text-sm font-semibold',
   }
   return (
-    <button
+    <SoundButton
       className={cn(
         'inline-flex items-center justify-center gap-2 transition duration-200 disabled:opacity-50',
         variants[variant],
@@ -27,7 +28,7 @@ function ActionButton({ variant = 'secondary', className, size = 'md', children,
       {...props}
     >
       {children}
-    </button>
+    </SoundButton>
   )
 }
 

@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { Cloud, Paperclip, Send } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { SoundButton } from '@/ui-sounds'
 
 function MessageInput({
   value,
@@ -66,7 +67,7 @@ function MessageInput({
           }}
           placeholder="Type a message..."
         />
-        <button
+        <SoundButton
           type="submit"
           className={cn(
             'mb-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-600 text-white',
@@ -77,7 +78,7 @@ function MessageInput({
           aria-label="Send message"
         >
           <Send className="h-[18px] w-[18px]" strokeWidth={2} />
-        </button>
+        </SoundButton>
         <input
           ref={fileInputRef}
           type="file"
