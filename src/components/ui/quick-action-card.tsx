@@ -47,7 +47,7 @@ export function QuickActionCard({ label, description, to, icon: Icon, index }: Q
         <span className="flex h-10 w-10 shrink-0 items-center justify-center self-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-500 transition-transform duration-300 group-hover:translate-x-1 group-hover:border-[#38BDF8]/20 group-hover:text-[#38BDF8]">
           <ChevronRight className="h-4 w-4" strokeWidth={2} />
         </span>
-      </Link>
+      </SoundLink>
     </motion.div>
   )
 }
