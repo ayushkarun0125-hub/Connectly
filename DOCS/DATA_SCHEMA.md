@@ -5,9 +5,19 @@
 
 ---
 
-## 📐 Design Philosophy
+## Database evolution (SQLite)
 
-Connectly uses Node.js's `fs` module for persistence — no database required. This is intentional:
+Schema is applied on **every server start** inside **`initDatabase()`** in **`server/utils/db.js`**: `CREATE TABLE IF NOT EXISTS`, **`PRAGMA table_info` + `ALTER TABLE ... ADD COLUMN`** for older DB files, indexes, SQL backfills (for example `room_access`, personal rooms), optional **demo moderation** inserts when non-production and `CONNECTLY_NO_DEMO_DATA` is unset, and cleanup of deprecated rows (for example legacy `room_general`). Admin/moderator account seeding is separate (`server/utils/seedAdmin.js`).
+
+**Reset dev safely:** stop the server → delete **`DB_PATH`** or default **`server/data/connectly.sqlite`** → start again. **`connectly.sqlite`** is not listed in the repo root **`.gitignore`** today; treat it as a local secret-bearing artifact and do not commit real data.
+
+See **[MIGRATIONS.md](./MIGRATIONS.md)** for narrative and operational detail.
+
+> **SQLite (live):** Users, rooms, messages, DMs, moderation, pins, enforcements, and read state live in **`server/utils/db.js`** / **`connectly.sqlite`**.
+
+## Design Philosophy (legacy JSON reference)
+
+This document still describes **legacy JSON/file** shapes (`rooms.json`, `messages/*.json`). The running server persists chat primarily in SQLite; `fileIO` may still create empty JSON paths. The bullets below reflect the original file-first rationale:
 
 - **Simple to reason about** — files are human-readable and inspectable
 - **No external dependencies** — no database server to install or configure
