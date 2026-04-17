@@ -7,7 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:system": "vitest run tests/system"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -44,6 +49,8 @@
     "tailwindcss": "^4.2.2",
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.58.1",
-    "vite": "^8.0.4"
+    "vite": "^8.0.4",
+    "supertest": "^7.1.4",
+    "vitest": "^3.2.4"
   }
 }

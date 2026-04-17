@@ -341,3 +341,10 @@ export function getDb() {
   }
   return db
 }
+
+/** Close the SQLite handle (for tests or graceful shutdown). */
+export async function closeDatabase() {
+  if (!db) return
+  await db.close()
+  db = undefined
+}
