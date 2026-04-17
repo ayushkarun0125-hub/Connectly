@@ -1,20 +1,64 @@
 # File Tree: w26-csci2020u-finalproject-w26-team-18
 
-**Generated:** 4/10/2026, 4:31:50 PM
-**Root Path:** `c:\Users\thaka\OneDrive\Desktop\Software_System_Final_project\w26-csci2020u-finalproject-w26-team-18`
+**Generated:** 4/17/2026  
+**Root Path:** `w26-csci2020u-finalproject-w26-team-18` (repo root)
 
 ```
 ├── 📁 DOCS
+│   ├── 📁 adr
+│   │   ├── 📝 0001-sqlite.md
+│   │   ├── 📝 0002-socket-io.md
+│   │   └── 📝 0003-jwt-sessions.md
+│   ├── 📁 readme-gifs
+│   │   ├── 📝 README.md
+│   │   └── ⚙️ .gitkeep
+│   ├── 📝 API.md
 │   ├── 📝 ARCHITECTURE.md
 │   ├── 📝 CHANGELOG.md
 │   ├── 📝 CONTRIBUTING.md
 │   ├── 📝 DATA_SCHEMA.md
 │   ├── 📝 DEMO_PREP.md
+│   ├── 📝 DEPLOYMENT.md
+│   ├── 📝 FEATURE_PRIORITIES.md
+│   ├── 📝 FLOWS.md
+│   ├── 📝 GLOSSARY.md
+│   ├── 📝 LICENSE.md
+│   ├── 📝 LIMITATIONS.md
+│   ├── 📝 MIGRATIONS.md
+│   ├── 📝 PRODUCT.md
+│   ├── 📝 ROADMAP.md
+│   ├── 📝 SECURITY.md
 │   ├── 📝 SETUP.md
 │   ├── 📝 SOCKET_EVENTS.md
 │   ├── 📝 TESTING.md
-│   └── 📝 Timeline.md
+│   ├── 📝 Timeline.md
+│   ├── 📝 TROUBLESHOOTING.md
+│   ├── 📝 UX_DECISIONS.md
+│   └── 📝 WIREFRAMES.md
+├── 📁 TESTS
+│   ├── 📁 helpers
+│   │   └── 📄 testServer.js
+│   ├── 📁 integration
+│   │   ├── 📄 dm-service.test.js
+│   │   ├── 📄 http-auth.test.js
+│   │   └── 📄 http-health.test.js
+│   ├── 📁 system
+│   │   └── 📄 live-server.test.js
+│   ├── 📁 unit
+│   │   ├── 📄 cn.test.ts
+│   │   ├── 📄 dm-conversation-id.test.js
+│   │   └── 📄 file-io.test.js
+│   └── 📝 Readme.md
+├── 📁 assets
+│   └── 📁 github-readme
+│       ├── 🖼️ hero-glass.svg
+│       ├── 🖼️ panel-chat.svg
+│       └── 🖼️ panel-whiteboard.svg
+├── 📁 data
+│   └── ⚙️ rooms.json
 ├── 📁 public
+│   ├── 📁 sounds
+│   │   └── ⚙️ .gitkeep
 │   ├── 🖼️ favicon.svg
 │   └── 🖼️ icons.svg
 ├── 📁 server
@@ -22,124 +66,56 @@
 │   │   ├── 📄 fileController.js
 │   │   ├── 📄 messageController.js
 │   │   ├── 📄 roomController.js
+│   │   ├── 📄 uploadController.js
 │   │   └── 📄 whiteboardController.js
 │   ├── 📁 data
 │   │   ├── 📁 messages
 │   │   ├── 📁 uploads
-│   │   │   └── 📄 1775688396374-CSCI2020U-m1-versioncontrol.pptx
 │   │   ├── 📄 connectly.sqlite
 │   │   └── ⚙️ rooms.json
+│   ├── 📁 routes
+│   │   └── 📄 adminApi.js
+│   ├── 📁 services
+│   │   ├── 📄 dmService.js
+│   │   ├── 📄 enforcementService.js
+│   │   ├── 📄 reportService.js
+│   │   └── 📄 unreadService.js
 │   ├── 📁 sockets
 │   │   └── 📄 registerSocketHandlers.js
 │   ├── 📁 utils
 │   │   ├── 📄 db.js
-│   │   └── 📄 fileIO.js
+│   │   ├── 📄 fileIO.js
+│   │   └── 📄 seedAdmin.js
 │   ├── ⚙️ .env.example
+│   ├── 📄 bootstrapServer.js
 │   ├── 📄 index.js
 │   ├── ⚙️ package-lock.json
 │   └── ⚙️ package.json
 ├── 📁 src
 │   ├── 📁 assets
-│   │   ├── 🖼️ hero.png
-│   │   ├── 🖼️ react.svg
-│   │   └── 🖼️ vite.svg
 │   ├── 📁 components
+│   │   ├── 📁 admin
 │   │   ├── 📁 connectly
-│   │   │   ├── 📄 ActionButton.jsx
-│   │   │   ├── 📄 AppSidebar.jsx
-│   │   │   ├── 📄 AppTopbar.jsx
-│   │   │   ├── 📄 ChatMessageItem.jsx
-│   │   │   ├── 📄 ConnectlyPanel.jsx
-│   │   │   ├── 📄 EmptyState.jsx
-│   │   │   ├── 📄 PageHeader.jsx
-│   │   │   ├── 📄 RoomListItem.jsx
-│   │   │   ├── 📄 SearchInput.jsx
-│   │   │   ├── 📄 SectionHeader.jsx
-│   │   │   ├── 📄 UserListItem.jsx
-│   │   │   ├── 📄 navUtils.js
-│   │   │   └── 📄 styles.js
-│   │   ├── 📁 ui
-│   │   │   ├── 📄 AvatarGroup.jsx
-│   │   │   ├── 📄 Badge.jsx
-│   │   │   ├── 📄 Button.jsx
-│   │   │   ├── 📄 Dropdown.jsx
-│   │   │   ├── 📄 Input.jsx
-│   │   │   ├── 📄 Loader.jsx
-│   │   │   ├── 📄 Modal.jsx
-│   │   │   ├── 📄 Skeleton.jsx
-│   │   │   ├── 📄 SurfaceCard.jsx
-│   │   │   ├── 📄 Table.jsx
-│   │   │   ├── 📄 Tabs.jsx
-│   │   │   ├── 📄 ToastContainer.jsx
-│   │   │   ├── 📄 card.tsx
-│   │   │   ├── 📄 demo.jsx
-│   │   │   ├── 📄 flow-field-backdrop.jsx
-│   │   │   ├── 📄 flow-field-background.jsx
-│   │   │   ├── 📄 pricing-section-4.tsx
-│   │   │   ├── 📄 sparkles.tsx
-│   │   │   ├── 📄 travel-connect-signin-1.jsx
-│   │   │   ├── 📄 travel-connect-signup-1.jsx
-│   │   │   └── 📄 vertical-cut-reveal.tsx
-│   │   ├── 📄 CreateRoomModal.jsx
-│   │   ├── 📄 ErrorBoundary.jsx
-│   │   ├── 📄 MessageFeed.jsx
-│   │   ├── 📄 MessageInput.jsx
-│   │   ├── 📄 TypingIndicator.jsx
-│   │   ├── 📄 UserPresencePanel.jsx
-│   │   └── 📄 WhiteboardCanvas.jsx
+│   │   └── 📁 ui
 │   ├── 📁 config
-│   │   └── 📄 serverUrl.js
 │   ├── 📁 contexts
-│   │   ├── 📄 AuthContext.jsx
-│   │   ├── 📄 auth-context.js
-│   │   └── 📄 useAuth.js
 │   ├── 📁 hooks
-│   │   └── 📄 useTheme.js
 │   ├── 📁 layouts
-│   │   ├── 📄 AppLayout.jsx
-│   │   └── 📄 PublicLayout.jsx
 │   ├── 📁 lib
-│   │   └── 📄 utils.js
-│   ├── 📁 mock
-│   │   └── 📄 data.js
 │   ├── 📁 pages
-│   │   ├── 📄 AdminPage.jsx
-│   │   ├── 📄 ChatPage.jsx
-│   │   ├── 📄 DashboardPage.jsx
-│   │   ├── 📄 FilesPage.jsx
-│   │   ├── 📄 ForgotPasswordPage.jsx
-│   │   ├── 📄 JoinRoomPage.jsx
-│   │   ├── 📄 LandingPage.jsx
-│   │   ├── 📄 LoginPage.jsx
-│   │   ├── 📄 LoginPreviewPage.jsx
-│   │   ├── 📄 NotesPage.jsx
-│   │   ├── 📄 ProfilePage.jsx
-│   │   ├── 📄 ProfileSetupPage.jsx
-│   │   ├── 📄 ResetPasswordPage.jsx
-│   │   ├── 📄 RoomDirectoryPage.jsx
-│   │   ├── 📄 SettingsPage.jsx
-│   │   ├── 📄 SignupPage.jsx
-│   │   ├── 📄 TeamPage.jsx
-│   │   └── 📄 WhiteboardPage.jsx
+│   │   └── 📁 admin
 │   ├── 📁 routes
-│   │   ├── 📄 AppRouter.jsx
-│   │   ├── 📄 ProtectedRoute.jsx
-│   │   ├── 📄 RequireProfileComplete.jsx
-│   │   └── 📄 RoleGate.jsx
 │   ├── 📁 services
-│   │   ├── 📄 authService.js
-│   │   ├── 📄 chatService.js
-│   │   ├── 📄 pinService.js
-│   │   ├── 📄 roomService.js
-│   │   └── 📄 socket.js
 │   ├── 📁 store
-│   │   └── 📄 useAppStore.js
+│   ├── 📁 ui-sounds
 │   ├── 🎨 App.css
 │   ├── 📄 App.jsx
 │   ├── 🎨 index.css
 │   └── 📄 main.jsx
 ├── ⚙️ .env.example
 ├── ⚙️ .gitignore
+├── 📝 File_Structure.md
+├── 📝 PROJECT_CHARTER.md
 ├── 📝 README.md
 ├── 📄 eslint.config.js
 ├── 🌐 index.html
@@ -148,8 +124,16 @@
 ├── ⚙️ package.json
 ├── 📄 tailwind.config.js
 ├── ⚙️ tsconfig.json
-└── 📄 vite.config.js
+├── 📄 vite.config.js
+└── 📄 vitest.config.js
 ```
 
+### Notes
+
+- **`server/bootstrapServer.js`** — Express app, Socket.io, routes, and DB init; **`server/index.js`** loads it and calls `server.listen(...)`.
+- **`TESTS/`** — Vitest suites: `unit/`, `integration/` (HTTP + SQLite via `helpers/testServer.js`), `system/` (optional live server; see `TESTS/Readme.md` and root `package.json` scripts).
+- **`src/`** — Many `.jsx` / `.tsx` page and component files live under the folders above; the tree shows structure only. Run `Get-ChildItem -Recurse src` (or your IDE tree) for a full file list.
+- **`server/data/`** and **`data/`** — Runtime SQLite, messages, uploads, and `rooms.json`; upload filenames change over time and are not listed here.
+
 ---
-*Generated by FileTree Pro Extension*
+*Maintained for the course repo; align with `README.md` and `DOCS/SETUP.md` for run instructions.*
