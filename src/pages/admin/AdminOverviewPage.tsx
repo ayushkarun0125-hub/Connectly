@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Activity, AlertTriangle, Radio, ScrollText, Server, Shield, Users, Zap } from 'lucide-react'
+import { Activity, AlertTriangle, Radio, ScrollText, Server, Shield, Users } from 'lucide-react'
 import { ActivityFeed, type DashboardActivityItem } from '@/components/ui/activity-feed'
 import { ModerationPreview } from '@/components/ui/moderation-preview'
 import { QuickActions } from '@/components/ui/quick-actions'
@@ -19,7 +19,15 @@ type OverviewData = {
     totalMessages?: number
   }
   recentSignups?: { id: string; email: string; createdAt: string }[]
-  moderationPreview?: { id: string; type: string; reason: string; roomId?: string }[]
+  moderationPreview?: {
+    id: string
+    type: string
+    reason: string
+    roomId?: string
+    status?: string
+    target?: string
+    createdAt?: string
+  }[]
   activitySample?: { id?: string; type?: string; at?: string; message?: string }[]
 }
 
@@ -29,6 +37,30 @@ function sparkFromStat(n: number, len = 10): number[] {
     x = (x * 19 + i * 7 + n) % 100
     return 0.35 + (x / 100) * 0.65
   })
+}
+
+function formatBytes(n: number) {
+  if (!Number.isFinite(n) || n < 0) return '—'
+  if (n < 1024) return `${Math.round(n)} B`
+  const units = ['KB', 'MB', 'GB']
+  let v = n / 1024
+  let u = 0
+  while (v >= 1024 && u < units.length - 1) {
+    v /= 1024
+    u += 1
+  }
+  const rounded = v >= 10 ? Math.round(v) : Number(v.toFixed(1))
+  return `${rounded} ${units[u]}`
+}
+
+function formatProcessUptime(sec: number) {
+  if (!Number.isFinite(sec) || sec < 0) return null
+  const d = Math.floor(sec / 86400)
+  const h = Math.floor((sec % 86400) / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  if (d > 0) return `Process uptime ${d}d ${h}h`
+  if (h > 0) return `Process uptime ${h}h ${m}m`
+  return `Process uptime ${m}m`
 }
 
 export type AdminOverviewPageProps = {
@@ -43,7 +75,28 @@ export default function AdminOverviewPage({
   const [data, setData] = useState<OverviewData | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [socketOk, setSocketOk] = useState(false)
+  const [systemSnapshot, setSystemSnapshot] = useState<Record<string, unknown> | null>(null)
+  const [systemDiagErr, setSystemDiagErr] = useState<string | null>(null)
+  const [systemRefreshing, setSystemRefreshing] = useState(false)
+  const [lastSystemCheck, setLastSystemCheck] = useState<number | null>(null)
   const isModeratorPortal = variant === 'moderator'
+
+  const refreshSystem = useCallback(async () => {
+    setSystemRefreshing(true)
+    setSystemDiagErr(null)
+    const t0 = performance.now()
+    try {
+      const raw = await adminApi.system()
+      const clientRttMs = Math.round(performance.now() - t0)
+      setSystemSnapshot({ ...raw, clientRttMs })
+      setLastSystemCheck(Date.now())
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Request failed'
+      setSystemDiagErr(msg)
+    } finally {
+      setSystemRefreshing(false)
+    }
+  }, [])
 
   useEffect(() => {
     adminApi
@@ -60,6 +113,12 @@ export default function AdminOverviewPage({
       s.off('disconnect', tick)
     }
   }, [])
+
+  useEffect(() => {
+    void refreshSystem()
+    const id = window.setInterval(() => void refreshSystem(), 45_000)
+    return () => window.clearInterval(id)
+  }, [refreshSystem])
 
   const stats = data?.stats
   const activity: DashboardActivityItem[] = useMemo(() => {
@@ -78,15 +137,46 @@ export default function AdminOverviewPage({
     return [...sample, ...signups].slice(0, 16)
   }, [data])
 
-  const healthServices = useMemo(
-    () => [
+  const stackUptimeLabel = useMemo(() => {
+    const sec = systemSnapshot?.uptimeSeconds
+    return typeof sec === 'number' ? formatProcessUptime(sec) : null
+  }, [systemSnapshot])
+
+  const healthServices = useMemo(() => {
+    const probeFailed = Boolean(systemDiagErr)
+    const env = typeof systemSnapshot?.environment === 'string' ? systemSnapshot.environment : null
+    const port = typeof systemSnapshot?.api === 'object' && systemSnapshot.api && 'port' in systemSnapshot.api
+      ? (systemSnapshot.api as { port?: number }).port
+      : undefined
+    const clientRtt =
+      typeof systemSnapshot?.clientRttMs === 'number' ? systemSnapshot.clientRttMs : undefined
+
+    const socketClients =
+      typeof systemSnapshot?.socket === 'object' && systemSnapshot.socket && 'connectedClients' in systemSnapshot.socket
+        ? (systemSnapshot.socket as { connectedClients?: number }).connectedClients
+        : undefined
+
+    const dbBytes =
+      typeof systemSnapshot?.database === 'object' && systemSnapshot.database && 'sqliteBytes' in systemSnapshot.database
+        ? (systemSnapshot.database as { sqliteBytes?: number }).sqliteBytes
+        : undefined
+    const dbPing = typeof systemSnapshot?.latencyMs === 'number' ? systemSnapshot.latencyMs : undefined
+
+    return [
       {
         id: 'rest',
         label: 'REST API',
         description: 'Auth, rooms, uploads, workspace APIs',
-        status: 'operational' as const,
+        status: probeFailed ? ('degraded' as const) : ('operational' as const),
         icon: 'api' as const,
-        pulse: true,
+        pulse: !probeFailed,
+        metrics: probeFailed
+          ? [{ label: 'Probe', value: 'failed' }]
+          : [
+              ...(clientRtt != null ? [{ label: 'RTT', value: `${clientRtt} ms` }] : []),
+              ...(port != null ? [{ label: 'Port', value: String(port) }] : []),
+              ...(env ? [{ label: 'Env', value: env === 'production' ? 'prod' : 'dev' }] : []),
+            ],
       },
       {
         id: 'ws',
@@ -95,18 +185,26 @@ export default function AdminOverviewPage({
         status: socketOk ? ('operational' as const) : ('degraded' as const),
         icon: 'socket' as const,
         pulse: socketOk,
+        metrics: [
+          { label: 'Clients', value: socketClients != null ? String(socketClients) : '—' },
+          { label: 'Transports', value: 'WS · poll' },
+        ],
       },
       {
         id: 'db',
         label: 'Persistence',
         description: 'SQLite — messages, members, pins',
-        status: 'operational' as const,
+        status: probeFailed ? ('degraded' as const) : ('operational' as const),
         icon: 'db' as const,
-        pulse: true,
+        pulse: !probeFailed,
+        metrics: [
+          ...(dbBytes != null ? [{ label: 'DB file', value: formatBytes(dbBytes) }] : []),
+          ...(dbPing != null ? [{ label: 'Ping', value: `${dbPing} ms` }] : []),
+          ...(probeFailed ? [{ label: 'Probe', value: 'stale' }] : []),
+        ],
       },
-    ],
-    [socketOk],
-  )
+    ]
+  }, [socketOk, systemDiagErr, systemSnapshot])
 
   const quickActionDefs = isModeratorPortal
     ? [
@@ -238,7 +336,14 @@ export default function AdminOverviewPage({
 
       <div className="grid gap-7 lg:grid-cols-12 lg:gap-9">
         <div className="space-y-7 lg:col-span-7">
-          <SystemHealth services={healthServices} />
+          <SystemHealth
+            services={healthServices}
+            lastCheckedAt={lastSystemCheck}
+            onRefresh={() => void refreshSystem()}
+            isRefreshing={systemRefreshing}
+            stackUptimeLabel={stackUptimeLabel}
+            diagnosticsError={systemDiagErr}
+          />
           <div
             className="rounded-2xl border border-sky-500/10 bg-[#060b14]/72 p-6 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.05)_inset,0_28px_64px_-36px_rgba(0,0,0,0.8)]"
           >
@@ -265,25 +370,6 @@ export default function AdminOverviewPage({
             items={data?.moderationPreview || []}
             queuePath={`${portalBase}/moderation`}
           />
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.22, ease: dashboardEase }}
-            className="rounded-2xl border border-sky-500/12 bg-gradient-to-br from-[#38BDF8]/10 via-[#060b14]/80 to-[#1D4ED8]/10 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.05)_inset]"
-          >
-            <div className="flex items-center gap-2 text-amber-200/95">
-              <Zap className="h-4 w-4" strokeWidth={1.75} />
-              <p className="text-xs font-medium uppercase tracking-wide">Tip</p>
-            </div>
-            <p className="mt-2 text-sm leading-relaxed text-slate-400">
-              Connectly routes realtime traffic over Socket.io. If reports spike, check the WebSocket pill above and
-              verify the API host matches your Vite{' '}
-              <code className="rounded-md border border-[#38BDF8]/25 bg-[#38BDF8]/10 px-1.5 py-0.5 text-[11px] text-[#38BDF8]">
-                VITE_SERVER_URL
-              </code>
-              .
-            </p>
-          </motion.div>
         </div>
       </div>
     </motion.div>

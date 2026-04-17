@@ -50,6 +50,17 @@ async function listModerationReports(db, { limit = 100, status = null } = {}) {
   )
 }
 
+async function listOpenModerationPreview(db, limit = 4) {
+  return db.all(
+    `SELECT id, type, target, room_id, reason, status, created_at, resolved_at
+     FROM moderation_reports
+     WHERE status IN ('pending', 'reviewing')
+     ORDER BY datetime(created_at) DESC
+     LIMIT ?`,
+    limit,
+  )
+}
+
 async function countOpenReports(db) {
   const row = await db.get(`SELECT COUNT(*) as n FROM moderation_reports WHERE status IN ('pending', 'reviewing')`)
   return Number(row?.n) || 0
@@ -106,7 +117,7 @@ export function registerAdminRoutes(app, { getAuthUser, io, listenPort, serverBo
       const totalRooms = (await db.get('SELECT COUNT(*) as n FROM rooms WHERE archived = 0')).n
       const totalMessages = (await db.get('SELECT COUNT(*) as n FROM messages')).n
       const reportedOpen = await countOpenReports(db)
-      const previewRows = await listModerationReports(db, { limit: 4, status: 'pending' })
+      const previewRows = await listOpenModerationPreview(db, 4)
 
       const recentUsers = await db.all(
         `SELECT id, email, display_name as displayName, role, created_at as createdAt FROM users ORDER BY created_at DESC LIMIT 5`,
@@ -126,6 +137,9 @@ export function registerAdminRoutes(app, { getAuthUser, io, listenPort, serverBo
           type: r.type,
           reason: r.reason,
           roomId: r.room_id || undefined,
+          status: r.status,
+          target: r.target,
+          createdAt: r.created_at,
         })),
         activitySample: activityRing.slice(-12).reverse(),
       })
@@ -138,7 +152,9 @@ export function registerAdminRoutes(app, { getAuthUser, io, listenPort, serverBo
   app.get('/api/admin/system', requireElevated, async (_req, res) => {
     try {
       const db = getDb()
+      const pingStart = Date.now()
       await db.get('SELECT 1')
+      const latencyMs = Date.now() - pingStart
       const uploadsDir = path.resolve('data', 'uploads')
       let storageBytes = 0
       try {
@@ -167,7 +183,7 @@ export function registerAdminRoutes(app, { getAuthUser, io, listenPort, serverBo
         },
         database: { ok: true, sqliteBytes: dbSize },
         uptimeSeconds: Math.floor((Date.now() - serverBootAt) / 1000),
-        latencyMs: null,
+        latencyMs,
         errorRatePercent: 0,
         storage: { uploadsBytes: storageBytes, databaseBytes: dbSize },
         environment: process.env.NODE_ENV === 'production' ? 'production' : 'development',

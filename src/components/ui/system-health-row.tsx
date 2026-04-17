@@ -5,6 +5,11 @@ import { dashboardEase } from '@/lib/dashboard-motion'
 
 export type HealthServiceStatus = 'operational' | 'degraded' | 'offline'
 
+export type HealthServiceMetric = {
+  label: string
+  value: string
+}
+
 export type HealthServiceRow = {
   id: string
   label: string
@@ -12,6 +17,7 @@ export type HealthServiceRow = {
   status: HealthServiceStatus
   icon?: 'api' | 'socket' | 'db'
   pulse?: boolean
+  metrics?: HealthServiceMetric[]
 }
 
 const iconMap = {
@@ -61,6 +67,19 @@ export function SystemHealthRow({ row, index }: SystemHealthRowProps) {
         <div className="min-w-0">
           <p className="text-sm font-medium text-slate-100">{row.label}</p>
           <p className="mt-1 text-xs leading-relaxed text-slate-500">{row.description}</p>
+          {row.metrics?.length ? (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {row.metrics.map((m) => (
+                <span
+                  key={`${row.id}-${m.label}`}
+                  className="inline-flex items-baseline gap-1 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[10px] leading-none shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]"
+                >
+                  <span className="font-medium uppercase tracking-wide text-slate-500">{m.label}</span>
+                  <span className="font-semibold tabular-nums text-slate-200">{m.value}</span>
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
       <span

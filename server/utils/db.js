@@ -190,6 +190,32 @@ export async function initDatabase() {
     await db.exec(`ALTER TABLE messages ADD COLUMN conversation_id TEXT`)
   }
 
+  const moderationCols = await db.all(`PRAGMA table_info(moderation_reports)`)
+  const moderationNames = new Set(moderationCols.map((c) => c.name))
+  if (moderationNames.size > 0) {
+    if (!moderationNames.has('reporter_user_id')) {
+      await db.exec(`ALTER TABLE moderation_reports ADD COLUMN reporter_user_id TEXT`)
+    }
+    if (!moderationNames.has('message_id')) {
+      await db.exec(`ALTER TABLE moderation_reports ADD COLUMN message_id TEXT`)
+    }
+    if (!moderationNames.has('file_id')) {
+      await db.exec(`ALTER TABLE moderation_reports ADD COLUMN file_id TEXT`)
+    }
+    if (!moderationNames.has('target_user_id')) {
+      await db.exec(`ALTER TABLE moderation_reports ADD COLUMN target_user_id TEXT`)
+    }
+    if (!moderationNames.has('note')) {
+      await db.exec(`ALTER TABLE moderation_reports ADD COLUMN note TEXT`)
+    }
+    if (!moderationNames.has('updated_at')) {
+      await db.exec(`ALTER TABLE moderation_reports ADD COLUMN updated_at TEXT`)
+    }
+    if (!moderationNames.has('resolved_at')) {
+      await db.exec(`ALTER TABLE moderation_reports ADD COLUMN resolved_at TEXT`)
+    }
+  }
+
   const userCols = await db.all(`PRAGMA table_info(users)`)
   if (!userCols.some((col) => col.name === 'bio')) {
     await db.exec(`ALTER TABLE users ADD COLUMN bio TEXT`)
@@ -247,6 +273,65 @@ export async function initDatabase() {
     await db.run(`DELETE FROM rooms WHERE id = 'room_general'`)
   } catch {
     /* ignore if tables empty or migration already applied */
+  }
+
+  await seedDemoModerationReportsIfEmpty(db)
+}
+
+async function seedDemoModerationReportsIfEmpty(database) {
+  if (process.env.NODE_ENV === 'production' || process.env.CONNECTLY_NO_DEMO_DATA === '1') return
+  const row = await database.get(`SELECT COUNT(*) as n FROM moderation_reports`)
+  if (Number(row?.n) > 0) return
+
+  const now = Date.now()
+  const iso = (msAgo) => new Date(now - msAgo).toISOString()
+  const rows = [
+    {
+      id: 'rep_seed_demo_1',
+      type: 'message',
+      target: 'msg_seed_demo_1',
+      roomId: null,
+      reason: 'Spam — repeated off-topic links in a public channel.',
+      status: 'pending',
+      createdAt: iso(2 * 60 * 60 * 1000),
+    },
+    {
+      id: 'rep_seed_demo_2',
+      type: 'user',
+      target: 'usr_seed_demo_1',
+      roomId: null,
+      reason: 'Harassment — two members submitted similar reports.',
+      status: 'reviewing',
+      createdAt: iso(5 * 60 * 60 * 1000),
+    },
+    {
+      id: 'rep_seed_demo_3',
+      type: 'file',
+      target: 'upload_seed_demo_1',
+      roomId: null,
+      reason: 'Upload may violate workspace acceptable-use policy.',
+      status: 'pending',
+      createdAt: iso(26 * 60 * 60 * 1000),
+    },
+  ]
+
+  for (const r of rows) {
+    await database.run(
+      `INSERT INTO moderation_reports
+       (id, type, target, room_id, reporter_user_id, message_id, file_id, target_user_id, reason, note, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, '', ?, ?, ?)`,
+      r.id,
+      r.type,
+      r.target,
+      r.roomId,
+      r.type === 'message' ? r.target : null,
+      r.type === 'file' ? r.target : null,
+      r.type === 'user' ? r.target : null,
+      r.reason,
+      r.status,
+      r.createdAt,
+      r.createdAt,
+    )
   }
 }
 

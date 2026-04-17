@@ -6,7 +6,27 @@ export type ModerationPreviewItem = {
   type: string
   reason: string
   roomId?: string
+  status?: string
+  target?: string
+  createdAt?: string
   severity?: 'low' | 'med' | 'high'
+}
+
+function formatPreviewTime(iso?: string) {
+  if (!iso) return null
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return null
+  const s = Math.floor((Date.now() - t) / 1000)
+  if (s < 45) return 'just now'
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  return `${Math.floor(s / 86400)}d ago`
+}
+
+function truncateTarget(s: string, max = 40) {
+  const t = s.trim()
+  if (t.length <= max) return t
+  return `${t.slice(0, max - 1)}…`
 }
 
 function inferSeverity(type: string): 'low' | 'med' | 'high' {
@@ -33,8 +53,20 @@ export type ModerationItemProps = {
   index: number
 }
 
+const queueStatusClass: Record<string, string> = {
+  pending: 'border-amber-400/35 bg-amber-500/12 text-amber-100',
+  reviewing: 'border-sky-400/35 bg-sky-500/12 text-sky-100',
+}
+
 export function ModerationItem({ item, index }: ModerationItemProps) {
   const severity = item.severity ?? inferSeverity(item.type)
+  const st = (item.status || 'pending').toLowerCase()
+  const statusClass = queueStatusClass[st] || 'border-white/15 bg-white/[0.06] text-slate-200'
+  const statusLabel =
+    st === 'reviewing' ? 'Reviewing' : st === 'pending' ? 'Pending' : st.replace(/_/g, ' ')
+  const when = formatPreviewTime(item.createdAt)
+  const targetLine = item.target ? truncateTarget(item.target) : null
+
   return (
     <motion.li
       initial={{ opacity: 0, x: 8 }}
@@ -55,19 +87,37 @@ export function ModerationItem({ item, index }: ModerationItemProps) {
             'backdrop-blur-sm transition-colors hover:border-amber-400/22 hover:bg-[#070e18]/95',
           )}
         >
-          <div className="flex items-center justify-between gap-2">
-            <span
-              className={cn(
-                'rounded-md border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide',
-                severityBadge[severity],
-              )}
-            >
-              {item.type}
-            </span>
-            {item.roomId ? (
-              <span className="truncate font-mono text-[10px] text-slate-500">{item.roomId}</span>
-            ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span
+                className={cn(
+                  'rounded-md border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide',
+                  severityBadge[severity],
+                )}
+              >
+                {item.type}
+              </span>
+              {item.status ? (
+                <span
+                  className={cn(
+                    'rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                    statusClass,
+                  )}
+                >
+                  {statusLabel}
+                </span>
+              ) : null}
+            </div>
+            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-2 gap-y-0.5 font-mono text-[10px] text-slate-500">
+              {when ? <span className="shrink-0 tabular-nums">{when}</span> : null}
+              {item.roomId ? <span className="max-w-[10rem] truncate">{item.roomId}</span> : null}
+            </div>
           </div>
+          {targetLine ? (
+            <p className="mt-1.5 truncate font-mono text-[10px] text-slate-500" title={item.target}>
+              Target · {targetLine}
+            </p>
+          ) : null}
           <p className="mt-2 text-sm leading-relaxed text-slate-300">{item.reason}</p>
         </div>
       </div>
