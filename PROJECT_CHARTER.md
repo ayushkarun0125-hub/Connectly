@@ -1,5 +1,7 @@
 # CSCI 2020U Project Charter & Work Contract
 
+**Last updated:** April 17, 2026 (final submission)
+
 ## 1. Project Overview
 
 * **Project members:** Dhruv Thakar, Ayush K., Aaryan Kulkarni
@@ -15,22 +17,25 @@
 
 ## 3. Work Division & Contribution Report
 
-*Note: The "Actual Contribution" column should be updated at the time of final submission. You may edit the "Task" column to reflect your own tasks.*
+*The “Actual Contribution” column reflects what each member delivered for the final codebase and documentation.*
 
 | Task / Module | Assigned Member (Plan) | Actual Contribution (Final) |
 | :--- | :--- | :--- |
-| **Multi-threaded Server** | Dhruv Thakar | *[To be completed at submission]* |
-| **Socket Networking** | Ayush K. | *[To be completed at submission]* |
-| **GUI Implementation** | Aaryan Kulkarni | *[To be completed at submission]* |
-| **Persistence (File I/O)** | Dhruv Thakar | *[To be completed at submission]* |
-| **UX/Sound Effects** | Aaryan Kulkarni | *[To be completed at submission]* |
-| **Documentation/README** | Ayush K. | *[To be completed at submission]* |
+| **Multi-threaded Server** | Dhruv Thakar | Express 5 HTTP stack (`server/bootstrapServer.js`, `server/index.js`): shared `http.Server` with Socket.io, REST API (auth, rooms, DMs, uploads, workspace, moderation-related HTTP), JWT/bcrypt auth middleware, CORS, static uploads, admin route wiring. |
+| **Socket Networking** | Ayush K. | Socket.io server (`server/sockets/registerSocketHandlers.js`) and client real-time layer (`src/services/socket.js`, chat services): join/leave room, messaging, typing, presence, whiteboard sync, and alignment with account/JWT handshake patterns. |
+| **GUI Implementation** | Aaryan Kulkarni | React 19 + Vite client: app shell, chat/DM/whiteboard/files/settings flows, landing and marketing pages, **admin** and **moderator** portals (dashboards, users, rooms, moderation, analytics), routing and role gates (`ProtectedRoute`, `AdminOnlyGate`, etc.). |
+| **Persistence (File I/O)** | Dhruv Thakar | SQLite schema and lifecycle (`server/utils/db.js`), controllers (messages, rooms, files, uploads, whiteboard), `server/utils/fileIO.js` for data directories, seed admin/moderator helpers, DM and unread services integration with the DB. |
+| **UX/Sound Effects** | Aaryan Kulkarni | Tailwind 4 styling, motion and layout polish, glass/marketing UI, reusable UI components, `src/ui-sounds/` for optional UI audio feedback, profile and onboarding UX. |
+| **Documentation/README** | Ayush K. | Root `README.md` (setup, features, stack), `DOCS/` (architecture, API, security, testing scenarios, setup, ADRs, changelog, etc.), `CONTRIBUTING.md`, `File_Structure.md`, and test run instructions where documented. |
+| **Automated testing** | Dhruv Thakar (lead) | `TESTS/` Vitest suites (unit, integration with Supertest + isolated DB workspace, optional system/live checks), `TESTS/helpers/testServer.js`, root `vitest.config.js` and `package.json` test scripts. |
 
 ## 4. Final Contribution Status (Tag one at Final Submission)
 
 At the end of the project, the team must agree on one of the following tags:
 
-* **[ ] (1) EVEN CONTRIBUTION:** All members met expectations from the original charter.
+* **[x] (1) EVEN CONTRIBUTION:** All members met expectations from the original charter.
 * **[ ] (2) UNEVEN CONTRIBUTION:** One or more members did not meet expectations.
+
+*Rationale:* Each member shipped their planned areas (server/persistence/tests, sockets and docs, GUI/UX). Commit counts differ by role (integration and server work naturally centralize more commits), but workload and outcomes met the team’s agreed expectations.
 
 *Note: Graders will use the "Actual Contribution" column above to apply uneven grades if necessary.*
