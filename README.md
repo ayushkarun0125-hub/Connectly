@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://readme-typing-svg.demolab.com?font=Inter&weight=600&size=22&duration=3800&pause=900&color=38BDF8&center=true&vCenter=true&width=680&lines=Real-time+multi-room+collaboration;Socket.io+%2B+React+%2B+Express+%2B+SQLite;Chat+%C2%B7+Whiteboard+%C2%B7+Presence+%C2%B7+JWT+auth;CSCI+2020U+%C2%B7+Group+53" alt="Animated typing subtitle" />
+  <img src="https://readme-typing-svg.demolab.com?font=Inter&weight=600&size=22&duration=3800&pause=900&color=38BDF8&center=true&vCenter=true&width=680&lines=Real-time+multi-room+collaboration;Socket.io+%2B+React+%2B+Express+%2B+SQLite;Chat+%C2%B7+Whiteboard+%C2%B7+Admin+%2F+moderation;CSCI+2020U+%C2%B7+Group+53+%2F+Team+18" alt="Animated typing subtitle" />
 </p>
 
 <p align="center">
@@ -14,7 +14,7 @@
 
 <p align="center">
   <a href="."><img src="https://img.shields.io/badge/Course-CSCI%202020U-0ea5e9?style=for-the-badge" alt="Course badge" /></a>
-  <a href="."><img src="https://img.shields.io/badge/Group-53-6366f1?style=for-the-badge" alt="Group badge" /></a>
+  <a href="."><img src="https://img.shields.io/badge/Group-53%20%7C%20Team-18-6366f1?style=for-the-badge" alt="Group / team badge" /></a>
   <a href="."><img src="https://img.shields.io/badge/Real--time-Socket.io-010101?style=for-the-badge&logo=socket.io&logoColor=white" alt="Socket.io badge" /></a>
 </p>
 
@@ -28,12 +28,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/OWNER/REPO"><img src="https://img.shields.io/github/stars/OWNER/REPO?style=for-the-badge&logo=github&color=fbbf24&label=Stars" alt="GitHub stars" /></a>
-  <a href="https://github.com/OWNER/REPO/graphs/contributors"><img src="https://img.shields.io/github/contributors/OWNER/REPO?style=for-the-badge&logo=github&color=38bdf8&label=Contributors" alt="Contributors" /></a>
-  <a href="https://github.com/OWNER/REPO/commits"><img src="https://img.shields.io/github/last-commit/OWNER/REPO?style=for-the-badge&logo=git&logoColor=white&color=64748b&label=Last%20commit" alt="Last commit" /></a>
+  <a href="https://github.com/search?q=w26-csci2020u-finalproject-w26-team-18&type=repositories"><img src="https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github&logoColor=white" alt="Find repository on GitHub" /></a>
 </p>
 
-<p align="center"><sub>Replace every <code>OWNER/REPO</code> in this file with your GitHub user or org and repository name so stars, contributors, and last-commit badges resolve. Optional: add a <a href="https://hits.seeyoufarm.com">README hits</a> badge with your repo URL encoded in the query string.</sub></p>
+<p align="center"><sub>After you publish the repo, replace the link above and optionally add live badges: <code>https://img.shields.io/github/stars/&lt;OWNER&gt;/&lt;REPO&gt;</code> (stars, contributors, last commit).</sub></p>
 
 # Connectly — Real-Time Multi-Room Communication Platform
 
@@ -45,7 +43,8 @@
 | Field | Details |
 | :--- | :--- |
 | **Course** | CSCI 2020U |
-| **Group** | 53 |
+| **Group (charter)** | 53 |
+| **Course repo (folder)** | Team 18 — `w26-csci2020u-finalproject-w26-team-18` |
 | **Product Name** | Connectly |
 | **Members** | Dhruv Thakar, Ayush K., Aaryan Kulkarni |
 
@@ -55,7 +54,7 @@
 
 Connectly is a **real-time, multi-room communication platform** for many concurrent clients with synchronized shared state.
 
-Beyond basic chat, it includes a **collaborative whiteboard**, **live presence**, **persistent messages and room data**, **file uploads**, and **JWT-based accounts**. Traffic is **event-driven** over **Socket.io**, with **Express** for REST and **SQLite** for structured persistence (users, rooms, messages, whiteboard strokes, pins). Additional **file-based** helpers under `server/utils` support uploads and legacy JSON data where applicable.
+Beyond basic chat, it includes **direct messages**, a **collaborative whiteboard**, **live presence**, **persistent messages and room data**, **file uploads**, **room pins**, and **JWT-based accounts**. **Staff dashboards** (`/app/admin`, `/app/moderator`) provide overview stats, system health probes, moderation queues, and user/room/file management for elevated roles. Traffic is **event-driven** over **Socket.io**, with **Express** for REST and **SQLite** for structured persistence (users, rooms, messages, whiteboard strokes, moderation reports, pins, and more). Uploads land on disk under the server data directory; optional JSON helpers may exist for legacy paths.
 
 ---
 
@@ -73,8 +72,8 @@ Beyond basic chat, it includes a **collaborative whiteboard**, **live presence**
 
 ### Persistence
 
-- **SQLite** (`server/data/connectly.sqlite` by default): users, rooms, messages, members, whiteboard strokes, room pins.
-- **Uploads** served from `server/data/uploads` (static route `/uploads`).
+- **SQLite** — default file is `server/data/connectly.sqlite` when `DB_PATH=./data/connectly.sqlite` in `server/.env` (paths are relative to the `server/` working directory). Override with **`DB_PATH`** for custom locations.
+- **Uploads** — stored under the server data tree and served via static routes (see `server` upload configuration).
 
 ### Presence and typing
 
@@ -88,7 +87,7 @@ Beyond basic chat, it includes a **collaborative whiteboard**, **live presence**
 ### Authentication and roles
 
 - **Sign up / login** with **bcrypt** password hashing and **JWT** sessions.
-- **App roles** (`admin` / `moderator` / `user`) stored on the user record; Admin UI is gated for elevated roles.
+- **App roles** (`admin` / `moderator` / `user`) stored on the user record; **Admin** and **moderator** portals are gated in the router (`/app/admin`, `/app/moderator`).
 - **Room roles**: first member in a room may be treated as room admin for that space (see server room logic).
 - **Dev admin seed** (non-production): on first server start, if no user exists with the configured email, the API creates an **admin** account. Defaults: **`admin@connectly.local`** / **`ConnectlyAdmin2026!`** (override with **`ADMIN_EMAIL`** and **`ADMIN_PASSWORD`** in `server/.env`). Set **`SEED_ADMIN=0`** to disable. In **production**, seeding runs only if **`SEED_ADMIN=1`** (avoid on public servers). If that email is already registered, the seed step does nothing; promote manually if needed:  
   `UPDATE users SET role = 'admin' WHERE email = 'you@example.com';`  
@@ -96,14 +95,19 @@ Beyond basic chat, it includes a **collaborative whiteboard**, **live presence**
 
 ### Landing and app shell
 
-- Marketing-style **landing** with sections and navigation; authenticated **app** area with dashboard, chat, whiteboard, files, team, settings, and more.
+- Marketing-style **landing** with sections and navigation; authenticated **app** area with workspace dashboard, chat, DMs, whiteboard, files, team, notes, settings, and staff tools for elevated roles.
+
+### Moderation and reporting
+
+- Users can file **moderation reports** (messages, files, users); staff review them in the **moderation** views and via Socket-driven queue refresh.
+- **Non-production** dev databases may auto-seed sample reports when the reports table is empty (unless **`CONNECTLY_NO_DEMO_DATA=1`**). See `server/utils/db.js` and course notes for demo behaviour.
 
 ---
 
 ## Showcase *(GIF layout)*
 
 <p align="center">
-  <strong>Drop screen recordings into <code>docs/readme-gifs/</code> and swap the <code>src</code> below, or keep the animated glass placeholders.</strong>
+  <strong>Drop screen recordings into <code>DOCS/readme-gifs/</code> and swap the <code>src</code> below, or keep the animated glass placeholders.</strong>
 </p>
 
 <table align="center">
@@ -111,12 +115,12 @@ Beyond basic chat, it includes a **collaborative whiteboard**, **live presence**
     <td width="50%" align="center">
       <p><strong>Chat &amp; presence</strong></p>
       <img src="assets/github-readme/panel-chat.svg" width="95%" alt="Animated placeholder — replace with chat-demo.gif" />
-      <p><sub>GIF: <code>docs/readme-gifs/chat-demo.gif</code></sub></p>
+      <p><sub>GIF: <code>DOCS/readme-gifs/chat-demo.gif</code></sub></p>
     </td>
     <td width="50%" align="center">
       <p><strong>Whiteboard sync</strong></p>
       <img src="assets/github-readme/panel-whiteboard.svg" width="95%" alt="Animated placeholder — replace with whiteboard-demo.gif" />
-      <p><sub>GIF: <code>docs/readme-gifs/whiteboard-demo.gif</code></sub></p>
+      <p><sub>GIF: <code>DOCS/readme-gifs/whiteboard-demo.gif</code></sub></p>
     </td>
   </tr>
 </table>
@@ -158,7 +162,7 @@ Browsers  ←—— Socket.io (WebSocket) ——→  Node server (Express + Sock
 ```
 repo root/
 ├── assets/github-readme/    # README hero + animated SVG panels (glass theme)
-├── docs/readme-gifs/        # Optional demo GIFs (see folder README)
+├── DOCS/readme-gifs/        # Optional demo GIFs (see DOCS/readme-gifs/README.md)
 ├── src/                     # React app (Vite)
 │   ├── components/          # UI + Connectly-specific components
 │   ├── pages/               # Routes (chat, whiteboard, landing, auth, …)
@@ -243,10 +247,15 @@ Serve the `dist/` output behind your hosting of choice; set **`VITE_SERVER_URL`*
 | `CLIENT_URL` | `server/.env` | Primary browser origin for CORS (default `http://localhost:5173`). |
 | `CORS_ORIGINS` | `server/.env` | Comma-separated extra allowed origins. |
 | `JWT_SECRET` | `server/.env` | Secret for signing tokens (change in any shared deployment). |
-| `DB_PATH` | `server/.env` | SQLite file path (default under `server/data/`). |
+| `DB_PATH` | `server/.env` | SQLite file path (default `./data/connectly.sqlite` under `server/`). |
 | `LAN_DEV` | `server/.env` | Set to `1` with `NODE_ENV=production` only if you intentionally need relaxed LAN CORS (avoid on public servers). |
+| `SEED_ADMIN` | `server/.env` | `0` disables default admin/moderator seed; `1` allows seeding in production (use with care). |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `server/.env` | Default admin account when seeding runs. |
+| `MODERATOR_EMAIL` / `MODERATOR_PASSWORD` | `server/.env` | Default moderator account when seeding runs. |
+| `SEED_MODERATOR` | `server/.env` | Set to `0` to skip moderator seed only (when supported by server). |
+| `CONNECTLY_NO_DEMO_DATA` | `server/.env` | `1` skips non-production demo moderation rows if your server build includes that seed path. |
 
-See **`server/.env.example`** and **`.env.example`** in the repo for templates.
+See **`server/.env.example`** and **`.env.example`** at the repo root for templates.
 
 ---
 
@@ -265,7 +274,21 @@ If the API picks a **different port** (busy port), set **`VITE_SERVER_PORT`** in
 
 ## Documentation
 
-Additional detail lives under **`DOCS/`**, including architecture, data schema, socket events, and testing notes.
+| Document | Contents |
+| :--- | :--- |
+| [**DOCS/SETUP.md**](DOCS/SETUP.md) | Extended setup, branches, troubleshooting hooks |
+| [**DOCS/ARCHITECTURE.md**](DOCS/ARCHITECTURE.md) | System design, layers, communication model |
+| [**DOCS/DATA_SCHEMA.md**](DOCS/DATA_SCHEMA.md) | Tables and fields (SQLite) |
+| [**DOCS/SOCKET_EVENTS.md**](DOCS/SOCKET_EVENTS.md) | Socket.io event reference |
+| [**DOCS/TESTING.md**](DOCS/TESTING.md) | Manual / automated testing notes |
+| [**DOCS/DEMO_PREP.md**](DOCS/DEMO_PREP.md) | Demo checklist |
+| [**DOCS/CONTRIBUTING.md**](DOCS/CONTRIBUTING.md) | Branching and PR conventions |
+| [**DOCS/CHANGELOG.md**](DOCS/CHANGELOG.md) | Day-by-day dev log template |
+| [**DOCS/Timeline.md**](DOCS/Timeline.md) | Milestone timeline |
+| [**PROJECT_CHARTER.md**](PROJECT_CHARTER.md) | Charter & work contract (source copy) |
+| [**File_Structure.md**](File_Structure.md) | Generated tree snapshot |
+
+**Health & ops:** `GET /health` (public) and `GET /api/admin/system` (JWT + elevated role) expose liveness and basic process/db metrics for dashboards.
 
 ---
 
@@ -275,7 +298,7 @@ Additional detail lives under **`DOCS/`**, including architecture, data schema, 
 - [ ] **Hosted database** — Postgres or managed DB for multi-instance deployments.
 - [ ] **Cloud object storage** — S3-compatible storage for uploads.
 - [ ] **Container deployment** — Docker Compose for repeatable local/prod setups.
-- [ ] **Moderation** — fully wired kick/ban and audit logs where still prototype-only.
+- [ ] **Deeper moderation** — richer audit trails, automated rules, and stricter production hardening beyond the current queue and staff tools.
 
 ---
 
