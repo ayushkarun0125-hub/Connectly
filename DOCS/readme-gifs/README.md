@@ -1,12 +1,12 @@
-# README demo GIFs
+# README demo recordings
 
-Add short screen recordings here and link them from the root `README.md`:
+Expected paths (referenced from the root `README.md` showcase):
 
-| File | Suggested content |
+| Path | Suggested content |
 | :--- | :--- |
-| `chat-demo.gif` | Chat room, typing, presence |
-| `whiteboard-demo.gif` | Drawing synced across two windows |
+| `DOCS/readme-gifs/chat-demo.gif` | Multi-room chat, typing, presence |
+| `DOCS/readme-gifs/whiteboard-demo.gif` | Drawing synced across two windows |
 
-Export as GIF or use MP4 and convert. Keep files reasonably small (&lt; ~5–8 MB) so the repo stays clone-friendly.
+Export as GIF, or record to MP4 and convert. Aim for roughly **5–8 MB** or smaller per file so clones stay reasonable.
 
-After adding files, update the root README image paths from the animated SVG placeholders to your GIFs if you prefer real footage.
+**Using GIFs in the README:** in the showcase table, set each `<img src="…">` to the matching path above (relative to the repo root) after the file is committed. Until then, the README keeps the animated SVG panels under `assets/github-readme/` so the page still looks complete on GitHub.
