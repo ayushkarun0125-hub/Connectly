@@ -63,11 +63,10 @@ The core design principle is **shared mutable state via event propagation** — 
 ┌─────────────────────────────┼───────────────────────────────────┐
 │                  PERSISTENCE LAYER                              │
 │                                                                 │
-│   ┌─────────────────┐   ┌──────────────────┐                   │
-│   │  messages.json  │   │   rooms.json     │                   │
-│   │  (per room)     │   │  (metadata,      │                   │
-│   │                 │   │   roles, users)  │                   │
-│   └─────────────────┘   └──────────────────┘                   │
+│   ┌───────────────────────────────┐   ┌───────────────────────────────┐                   │
+│   │  SQLite — primary store     │   │  Filesystem + legacy JSON   │                   │
+│   │  (connectly.sqlite)         │   │  uploads; fileIO seeds only │                   │
+│   └───────────────────────────────┘   └───────────────────────────────┘                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -90,7 +89,7 @@ Client                          Server
   │                               │
   │──── send-message ────────────▶│  Message received
   │◀─── new-message ──────────────│  Broadcast to all in room
-  │                               │  Written to messages.json
+  │                               │  createMessage + persistMessage → SQLite
   │                               │
   │──── typing-start ────────────▶│
   │◀─── user-typing ──────────────│  Broadcast to others in room
@@ -160,90 +159,45 @@ Re-render
 
 ```
 server/
-├── index.js                  # Express + Socket.io bootstrap
-│
+├── index.js # Express + HTTP routes + Socket.io listen
 ├── sockets/
-│   ├── chatHandlers.js       # send-message, room-history events
-│   ├── roomHandlers.js       # join-room, leave-room, presence
-│   ├── whiteboardHandlers.js # draw-event sync
-│   └── dmHandlers.js         # Private messaging events
-│
-├── controllers/
-│   ├── roomController.js     # Room creation, user tracking logic
-│   ├── messageController.js  # Message validation + persistence
-│   └── fileController.js     # File upload handling
-│
+│   └── registerSocketHandlers.js # Chat, rooms, DMs, whiteboard, presence, …
+├── controllers/                  # room, message, whiteboard, file, upload
+├── routes/
+│   └── adminApi.js               # Elevated REST: overview, users, moderation, …
+├── services/                     # reports, DMs, enforcement, unread, …
 ├── utils/
-│   └── fileIO.js             # Read/write helpers for JSON storage
-│
+│   ├── db.js                     # SQLite schema, migrations, init
+│   ├── fileIO.js                 # Legacy JSON helpers + ensureDataFiles()
+│   └── seedAdmin.js              # Optional dev admin/moderator seed
 └── data/
-    ├── messages/
-    │   └── {roomId}.json     # One file per room
-    └── rooms.json            # Room metadata + role assignments
+    ├── connectly.sqlite          # Primary database (see DB_PATH)
+    ├── uploads/                  # Uploaded binaries
+    ├── admin-settings.json       # Written by admin API (if used)
+    └── rooms.json, messages/     # Initialized by fileIO; not the live source of truth
 ```
 
 ---
 
 ## 💾 Persistence Design
 
-Connectly uses the Node.js `fs` module for lightweight file-based persistence. No database is required.
+**Primary store:** **SQLite** via `server/utils/db.js`. Default database file: `server/data/connectly.sqlite` when `DB_PATH=./data/connectly.sqlite`. Durable **users, rooms, messages, membership, DMs, whiteboard strokes, moderation, pins, read state**, etc. live in SQL tables — see **[DATA_SCHEMA.md](./DATA_SCHEMA.md)**.
 
-### Message Storage
+### On-disk files besides SQLite
 
-Each room has its own JSON file:
+| Location | Purpose |
+| :--- | :--- |
+| `server/data/uploads/` | Uploaded binaries |
+| `server/data/admin-settings.json` | Platform settings from admin API |
+| `server/data/rooms.json`, `server/data/messages/*.json` | Created by `fileIO.ensureDataFiles()`; **not** the live read/write path for chat (SQLite is) |
 
-```
-data/messages/{roomId}.json
-```
-
-```json
-[
-  {
-    "id": "msg_1714000000000",
-    "userId": "user_abc",
-    "username": "Dhruv",
-    "content": "Hello room!",
-    "timestamp": "2024-04-25T10:00:00.000Z",
-    "type": "text"
-  },
-  {
-    "id": "msg_1714000001000",
-    "userId": "user_xyz",
-    "username": "Aaryan",
-    "content": "uploads/image_123.png",
-    "timestamp": "2024-04-25T10:00:01.000Z",
-    "type": "file"
-  }
-]
-```
-
-### Room Metadata Storage
+### Read / write strategy (conceptual)
 
 ```
-data/rooms.json
-```
-
-```json
-{
-  "room_general": {
-    "id": "room_general",
-    "name": "General",
-    "createdAt": "2024-04-25T09:00:00.000Z",
-    "users": {
-      "user_abc": { "username": "Dhruv", "role": "admin" },
-      "user_xyz": { "username": "Aaryan", "role": "member" }
-    }
-  }
-}
-```
-
-### Read/Write Strategy
-
-```
-On server start   →  Load rooms.json into memory
-On join-room      →  Read {roomId}.json, emit history to client
-On send-message   →  Append to in-memory array, write array to {roomId}.json
-On server restart →  Reload from JSON files (state fully recovered)
+On server start     →  initDatabase(): migrations + schema
+On join-room        →  SELECT messages → emit room-history
+On send-message     →  INSERT into messages → broadcast new-message
+On restart          →  Recover from SQLite + uploads
 ```
 
 ---
@@ -256,15 +210,13 @@ On server restart →  Reload from JSON files (state fully recovered)
 User types message
     │
     ▼
-MessageInput.jsx  ──── socket.emit("send-message", { roomId, content }) ────▶  chatHandlers.js
+MessageInput.jsx  ──── socket.emit("send-message", { roomId, content }) ────▶  registerSocketHandlers.js
                                                                                       │
-                                                                          Validate + timestamp
+                                                                          createMessage + persistMessage
                                                                                       │
-                                                                          Append to messages array
+                                                                          INSERT into SQLite (messages)
                                                                                       │
-                                                                          Write to {roomId}.json
-                                                                                      │
-                                                          io.to(roomId).emit("new-message", msg)
+                                                          io.to(roomId).emit("new-message", message)
                                                                                       │
                                                                     ┌─────────────────┘
                                                                     │
@@ -281,9 +233,9 @@ User draws on canvas
 WhiteboardCanvas.jsx
     │  onMouseMove → collect {x, y, color, size, type}
     │
-    ├── socket.emit("draw-event", strokeData) ────▶  whiteboardHandlers.js
+    ├── socket.emit("draw-event", strokeData) ────▶  registerSocketHandlers.js
     │                                                        │
-    │                                        socket.to(roomId).emit("draw-event", strokeData)
+    │                                        addStroke → SQLite; socket.to(roomId).emit("draw-event", stroke)
     │                                                        │
     │                                               All OTHER clients
     │                                               render stroke on their canvas
@@ -297,7 +249,7 @@ WhiteboardCanvas.jsx
 Client connects + joins room
     │
     ▼
-roomHandlers.js
+registerSocketHandlers (room / presence)
     │  Add user to in-memory room map
     │  io.to(roomId).emit("user-joined", { userId, username })
     │
@@ -345,7 +297,7 @@ Roles:  member  →  moderator  →  admin
            └─────────────────────────── send messages, draw, share files
 ```
 
-Roles are stored per-user per-room in `rooms.json`. The server validates role permissions before executing privileged socket events.
+Room membership and roles are persisted in **SQLite** (e.g. `room_members` and related tables — see **DATA_SCHEMA.md**). The server validates permissions before privileged actions (kick, enforcement, etc.).
 
 ```
 Client emits "kick-user"
@@ -392,7 +344,7 @@ Event Loop
     │
     ├── Socket event received  →  Handler runs (non-blocking)
     │                              │
-    │                              ├── fs.writeFile() → async, does not block loop
+    │                              ├── SQLite queries (async) → do not block the loop
     │                              └── io.to(room).emit() → synchronous, fast
     │
     ├── Next socket event handled immediately
@@ -407,12 +359,12 @@ There is no multi-threading — Node.js and Socket.io together handle concurrenc
 
 | Current Limitation | Future Solution |
 | :--- | :--- |
-| JSON file storage doesn't scale | Replace with MongoDB or Firebase |
+| SQLite file DB — single-writer limits | Move to managed Postgres/MySQL or replicate read replicas for scale |
 | Single Node.js process — no horizontal scaling | Add Redis adapter for Socket.io across multiple processes |
-| No authentication — usernames are self-declared | Add JWT auth (login, session tokens) |
-| Files stored locally on server | Move to AWS S3 or Firebase Storage |
+| JWT sessions — no built-in refresh / revocation UX | Short-lived access tokens, refresh flow, or server-side session store |
+| Files stored locally on server | Move to object storage (e.g. S3) for multi-instance deploys |
 | No TLS/WSS encryption | Add HTTPS + WSS in production deployment |
-| Whiteboard state not persisted | Serialize canvas state to JSON on draw events |
+| Large canvas histories can grow the DB | Stroke pruning, snapshots, or TTL policies per room |
 
 ---
 
