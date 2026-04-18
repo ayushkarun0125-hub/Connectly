@@ -1,5 +1,5 @@
 {
-  "uploadLimitMB": 8,
+  "uploadLimitMB": 50,
   "allowedFileTypes": "images, pdf, documents",
   "roomRules": "Be respectful. No illegal content.",
   "moderationDefaultAction": "flag",
