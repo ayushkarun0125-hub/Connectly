@@ -9,6 +9,7 @@ function authHeaders() {
 const emptyDashboard = {
   rooms: [],
   activeUsers: [],
+  onlineInWorkspace: 0,
   sharedFilesCount: 0,
   unreadMessagesTotal: 0,
   recentFiles: [],

@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import AppSidebar from '../components/connectly/AppSidebar'
 import AppTopbar from '../components/connectly/AppTopbar'
 import CreateRoomModal from '../components/CreateRoomModal'
 import { useAuth } from '../contexts/useAuth'
 import { shellBg } from '../components/connectly/styles'
+import { connectSocket } from '../services/socket'
 
 function AppLayout() {
   const navigate = useNavigate()
@@ -13,6 +14,35 @@ function AppLayout() {
   const staffPortal = role === 'admin' || role === 'moderator'
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  /**
+   * Join shared lobby + personal space so `room_members` overlaps everyone’s `room_access`
+   * (dashboard “Online users” / per-room counts are DB-backed).
+   */
+  useEffect(() => {
+    if (!isSignedIn || !user?.id) return
+    const roomIds = [...new Set(['room_design', user.personalRoomId].filter(Boolean))]
+    if (!roomIds.length) return
+
+    const socket = connectSocket()
+    const username = user.displayName || user.email || 'User'
+
+    const joinPresence = () => {
+      for (const roomId of roomIds) {
+        socket.emit('join-room', { roomId, username })
+      }
+    }
+
+    socket.on('connect', joinPresence)
+    if (socket.connected) joinPresence()
+
+    return () => {
+      socket.off('connect', joinPresence)
+      for (const roomId of roomIds) {
+        socket.emit('leave-room', { roomId })
+      }
+    }
+  }, [isSignedIn, user?.id, user?.personalRoomId, user?.displayName, user?.email])
 
   function handleCreatedRoom(created) {
     navigate(`/app/rooms/${encodeURIComponent(created.id)}`, {

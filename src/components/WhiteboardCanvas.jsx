@@ -17,7 +17,7 @@ function drawLine(ctx, stroke) {
   ctx.stroke()
 }
 
-function WhiteboardCanvas({ onDrawEvent, remoteDrawEvent }) {
+function WhiteboardCanvas({ onDrawEvent, remoteDrawEvent, serverSnapshot }) {
   const canvasRef = useRef(null)
   const drawingRef = useRef(false)
   const lastPointRef = useRef({ x: 0, y: 0 })
@@ -32,6 +32,21 @@ function WhiteboardCanvas({ onDrawEvent, remoteDrawEvent }) {
     ctx.fillStyle = '#020617'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
   }, [])
+
+  /** Full state from server when joining the room (Socket `whiteboard-state`). */
+  useEffect(() => {
+    if (serverSnapshot == null) return
+    const strokes = Array.isArray(serverSnapshot.strokes) ? serverSnapshot.strokes : []
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#020617'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    historyRef.current = []
+    for (const stroke of strokes) {
+      drawLine(ctx, stroke)
+      if (stroke.type === 'draw') historyRef.current.push(stroke)
+    }
+  }, [serverSnapshot])
 
   useEffect(() => {
     if (!remoteDrawEvent) return

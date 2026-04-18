@@ -57,6 +57,7 @@ export async function resolveInviteCodeApi(code) {
   if (!trimmed) return null
   const response = await fetch(
     `${getServerBaseUrl()}/api/rooms/resolve/${encodeURIComponent(trimmed)}`,
+    { headers: { ...authHeaders() } },
   )
   if (!response.ok) return null
   return response.json()
@@ -65,7 +66,7 @@ export async function resolveInviteCodeApi(code) {
 export async function updateRoomNameApi(roomId, name) {
   const response = await fetch(`${getServerBaseUrl()}/api/rooms/${encodeURIComponent(roomId)}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ name }),
   })
   if (!response.ok) {

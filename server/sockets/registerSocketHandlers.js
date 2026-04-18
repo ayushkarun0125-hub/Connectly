@@ -2,7 +2,14 @@ import { createMessage, getRoomHistory, persistMessage } from '../controllers/me
 import { saveFile } from '../controllers/fileController.js'
 import { recordUploadFile } from '../controllers/uploadController.js'
 import { addStroke, getWhiteboardState } from '../controllers/whiteboardController.js'
-import { getRoomUsers, getUserRoom, joinRoomWithAccount, leaveRoom, userCanAccessRoom } from '../controllers/roomController.js'
+import {
+  getRoomUsers,
+  getUserRooms,
+  joinRoomWithAccount,
+  leaveRoom,
+  resolveRoomUsername,
+  userCanAccessRoom,
+} from '../controllers/roomController.js'
 import { createRoomEnforcement, getActiveRoomEnforcement } from '../services/enforcementService.js'
 import { ensureDmConversation, getDmHistory, isParticipant } from '../services/dmService.js'
 
@@ -49,9 +56,10 @@ export default function registerSocketHandlers(io) {
         accountUserId: socket.accountUserId || null,
       })
       const history = await getRoomHistory(roomId)
+      const usersList = await getRoomUsers(roomId)
       socket.emit('room-history', history)
-      socket.emit('room-users', await getRoomUsers(roomId))
       socket.emit('whiteboard-state', await getWhiteboardState(roomId))
+      io.to(roomId).emit('room-users', usersList)
       socket.to(roomId).emit('user-joined', { userId: socket.id, username, role })
     })
 
@@ -60,15 +68,19 @@ export default function registerSocketHandlers(io) {
       await leaveRoom({ socketId: socket.id, roomId })
       socket.leave(roomId)
       socket.to(roomId).emit('user-left', { userId: socket.id })
+      try {
+        io.to(roomId).emit('room-users', await getRoomUsers(roomId))
+      } catch {
+        /* room may be empty */
+      }
     })
 
     socket.on('send-message', async ({ roomId, content, type }) => {
       if (!roomId || !content) return
-      const currentUsers = await getRoomUsers(roomId)
-      const sender = currentUsers.find((user) => user.userId === socket.id)
+      const username = await resolveRoomUsername(roomId, socket)
       const message = await createMessage({
         userId: socket.accountUserId || socket.id,
-        username: sender?.username || 'Anonymous',
+        username,
         content,
         type,
       })
@@ -78,9 +90,8 @@ export default function registerSocketHandlers(io) {
     })
 
     socket.on('typing-start', ({ roomId }) => {
-      getRoomUsers(roomId).then((users) => {
-        const sender = users.find((user) => user.userId === socket.id)
-        socket.to(roomId).emit('user-typing', { userId: socket.id, username: sender?.username || 'Anonymous' })
+      resolveRoomUsername(roomId, socket).then((username) => {
+        socket.to(roomId).emit('user-typing', { userId: socket.id, username })
       })
     })
 
@@ -98,10 +109,10 @@ export default function registerSocketHandlers(io) {
     socket.on('upload-file', async ({ roomId, filename, mimeType, data }) => {
       if (!roomId || !filename || !data) return
       const savedName = await saveFile({ filename, data })
-      const sender = (await getRoomUsers(roomId)).find((user) => user.userId === socket.id)
+      const username = await resolveRoomUsername(roomId, socket)
       const message = await createMessage({
         userId: socket.accountUserId || socket.id,
-        username: sender?.username || 'Anonymous',
+        username,
         content: filename,
         type: 'file',
         extra: {
@@ -258,10 +269,16 @@ export default function registerSocketHandlers(io) {
     })
 
     socket.on('disconnect', async () => {
-      const roomId = getUserRoom(socket.id)
-      if (!roomId) return
-      await leaveRoom({ socketId: socket.id, roomId })
-      socket.to(roomId).emit('user-left', { userId: socket.id })
+      const roomIds = getUserRooms(socket.id)
+      for (const roomId of roomIds) {
+        await leaveRoom({ socketId: socket.id, roomId })
+        socket.to(roomId).emit('user-left', { userId: socket.id })
+        try {
+          io.to(roomId).emit('room-users', await getRoomUsers(roomId))
+        } catch {
+          /* ignore */
+        }
+      }
     })
   })
 }

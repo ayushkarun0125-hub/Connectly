@@ -1,7 +1,20 @@
 import { randomBytes } from 'node:crypto'
 import { getDb } from '../utils/db.js'
 
+/** Shared lobby: everyone gets `room_access` so workspace-wide presence / dashboard counts work. */
+export const WORKSPACE_LOBBY_ROOM_ID = 'room_design'
+
 const userRooms = new Map()
+
+function trackSocketRoom(socketId, roomId) {
+  if (!socketId || !roomId) return
+  let set = userRooms.get(socketId)
+  if (!set) {
+    set = new Set()
+    userRooms.set(socketId, set)
+  }
+  set.add(roomId)
+}
 
 const INVITE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
 
@@ -99,6 +112,26 @@ export async function grantRoomAccess({ roomId, userId, source = 'invite' }) {
   )
 }
 
+/** Ensures the team lobby room exists and every active account can enter it (for shared presence). */
+export async function ensureWorkspaceLobbyForAllUsers() {
+  const db = getDb()
+  const now = new Date().toISOString()
+  await db.run(
+    `INSERT OR IGNORE INTO rooms (id, name, created_at, archived, created_by_user_id)
+     VALUES (?, 'Design', ?, 0, NULL)`,
+    WORKSPACE_LOBBY_ROOM_ID,
+    now,
+  )
+  await db.run(
+    `INSERT OR IGNORE INTO room_access (room_id, user_id, granted_at, source)
+     SELECT ?, u.id, ?, 'workspace'
+     FROM users u
+     WHERE COALESCE(u.account_status, 'active') = 'active'`,
+    WORKSPACE_LOBBY_ROOM_ID,
+    now,
+  )
+}
+
 export async function userCanAccessRoom({ user, roomId }) {
   if (!user || !roomId) return false
   if (user.role === 'admin' || user.role === 'moderator') return true
@@ -177,7 +210,7 @@ export async function joinRoom({ socketId, roomId, username }) {
     now,
     null,
   )
-  userRooms.set(socketId, roomId)
+  trackSocketRoom(socketId, roomId)
   return { role }
 }
 
@@ -190,6 +223,18 @@ export async function joinRoomWithAccount({ socketId, roomId, username, accountU
     roomId,
     now,
   )
+  if (accountUserId) {
+    const un = String(username || '').trim()
+    if (un) {
+      await db.run(
+        `DELETE FROM room_members WHERE room_id = ?
+         AND (account_user_id IS NULL OR TRIM(account_user_id) = '')
+         AND LOWER(TRIM(username)) = LOWER(?)`,
+        roomId,
+        un,
+      )
+    }
+  }
   const row = await db.get('SELECT COUNT(*) as count FROM room_members WHERE room_id = ?', roomId)
   const role = row.count === 0 ? 'admin' : 'member'
   await db.run(
@@ -204,7 +249,7 @@ export async function joinRoomWithAccount({ socketId, roomId, username, accountU
     now,
     accountUserId || null,
   )
-  userRooms.set(socketId, roomId)
+  trackSocketRoom(socketId, roomId)
   return { role }
 }
 
@@ -215,23 +260,102 @@ export async function leaveRoom({ socketId, roomId }) {
     roomId,
     socketId,
   )
-  userRooms.delete(socketId)
+  const set = userRooms.get(socketId)
+  if (set) {
+    set.delete(roomId)
+    if (set.size === 0) userRooms.delete(socketId)
+  }
+}
+
+function normalizePresenceName(username) {
+  return String(username || '')
+    .trim()
+    .toLowerCase()
+}
+
+function hasAccountId(u) {
+  return u.accountUserId != null && String(u.accountUserId).trim() !== ''
 }
 
 export async function getRoomUsers(roomId) {
   const db = getDb()
   const rows = await db.all(
-    'SELECT socket_id, username, role, account_user_id FROM room_members WHERE room_id = ? ORDER BY joined_at ASC',
+    'SELECT socket_id, username, role, account_user_id, joined_at FROM room_members WHERE room_id = ? ORDER BY datetime(joined_at) DESC',
     roomId,
   )
-  return rows.map((row) => ({
-    userId: row.socket_id,
-    accountUserId: row.account_user_id || null,
-    username: row.username,
-    role: row.role,
-  }))
+  /** One presence row per logged-in account (multi-tab = one user). Guests keyed by socket. */
+  const seen = new Set()
+  const out = []
+  for (const row of rows) {
+    const acct = row.account_user_id != null && String(row.account_user_id).trim() !== '' ? String(row.account_user_id).trim() : ''
+    const key = acct ? `a:${acct}` : `s:${row.socket_id}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({
+      userId: row.socket_id,
+      accountUserId: acct || null,
+      username: row.username,
+      role: row.role,
+    })
+  }
+
+  /** Drop stale rows: same display name as a logged-in user but missing account_user_id (old sessions). */
+  const namesWithAccounts = new Set()
+  for (const u of out) {
+    const n = normalizePresenceName(u.username)
+    if (n && hasAccountId(u)) namesWithAccounts.add(n)
+  }
+  const merged = out.filter((u) => {
+    const n = normalizePresenceName(u.username)
+    if (!n) return true
+    if (hasAccountId(u)) return true
+    return !namesWithAccounts.has(n)
+  })
+
+  const accountIds = [...new Set(merged.map((u) => u.accountUserId).filter(Boolean))]
+  const roleById = {}
+  if (accountIds.length) {
+    const placeholders = accountIds.map(() => '?').join(',')
+    const urows = await db.all(`SELECT id, role FROM users WHERE id IN (${placeholders})`, ...accountIds)
+    for (const r of urows) {
+      roleById[r.id] = r.role
+    }
+  }
+
+  const withAppRole = merged.map((u) => {
+    const app = u.accountUserId ? roleById[u.accountUserId] : null
+    let displayRole = u.role
+    if (app) {
+      displayRole = app === 'user' ? 'member' : app
+    }
+    return {
+      userId: u.userId,
+      accountUserId: u.accountUserId,
+      username: u.username,
+      role: displayRole,
+    }
+  })
+
+  withAppRole.sort((a, b) => String(a.username).localeCompare(String(b.username), undefined, { sensitivity: 'base' }))
+  return withAppRole
 }
 
-export function getUserRoom(socketId) {
-  return userRooms.get(socketId)
+/**
+ * Display name for this socket in a room after presence dedupe (another tab may own the listed row).
+ */
+export async function resolveRoomUsername(roomId, socket) {
+  const users = await getRoomUsers(roomId)
+  const sid = socket.id
+  const acct = socket.accountUserId != null ? String(socket.accountUserId) : ''
+  let row = users.find((u) => u.userId === sid)
+  if (!row && acct) {
+    row = users.find((u) => u.accountUserId === acct)
+  }
+  return row?.username || socket.accountDisplayName || 'Anonymous'
+}
+
+/** @returns {string[]} room ids this socket has joined (DB presence rows may still exist if tracking desynced). */
+export function getUserRooms(socketId) {
+  const set = userRooms.get(socketId)
+  return set ? [...set] : []
 }

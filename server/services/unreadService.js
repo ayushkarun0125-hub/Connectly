@@ -24,26 +24,39 @@ export async function markRoomRead({ roomId, userId }) {
   return { roomId, userId, lastReadAt: at, lastReadMessageId: messageId }
 }
 
-export async function getUnreadByRoom(userId) {
+/**
+ * Unread counts per room for this user.
+ * - Non-staff: only rooms in `room_access` (no stray totals from other workspaces).
+ * - Counts messages newer than `room_read_state.last_read_at`, or all messages if never marked read.
+ */
+export async function getUnreadByRoom(userId, isStaff = false) {
   const db = getDb()
-  const rows = await db.all(
-    `SELECT r.id as roomId,
-      COALESCE(
-        SUM(
-          CASE
-            WHEN rs.last_read_at IS NULL THEN 1
-            WHEN datetime(m.timestamp) > datetime(rs.last_read_at) THEN 1
-            ELSE 0
-          END
-        ), 0
-      ) as unread
-    FROM rooms r
-    LEFT JOIN messages m ON m.room_id = r.id
-    LEFT JOIN room_read_state rs ON rs.room_id = r.id AND rs.user_id = ?
-    WHERE r.archived = 0
-    GROUP BY r.id`,
-    userId,
-  )
+  const uid = String(userId)
+
+  const unreadExpr = `(
+    SELECT COUNT(*) FROM messages m
+    WHERE m.room_id = r.id
+    AND (
+      NOT EXISTS (SELECT 1 FROM room_read_state rs WHERE rs.room_id = r.id AND rs.user_id = ?)
+      OR datetime(m.timestamp) > datetime((
+        SELECT rs2.last_read_at FROM room_read_state rs2
+        WHERE rs2.room_id = r.id AND rs2.user_id = ? LIMIT 1
+      ))
+    )
+  )`
+
+  const sql = isStaff
+    ? `SELECT r.id AS roomId, ${unreadExpr} AS unread
+       FROM rooms r
+       WHERE r.archived = 0`
+    : `SELECT r.id AS roomId, ${unreadExpr} AS unread
+       FROM rooms r
+       INNER JOIN room_access ra ON ra.room_id = r.id AND ra.user_id = ?
+       WHERE r.archived = 0`
+
+  const params = isStaff ? [uid, uid] : [uid, uid, uid]
+  const rows = await db.all(sql, ...params)
+
   const map = {}
   let total = 0
   for (const row of rows) {
@@ -53,4 +66,3 @@ export async function getUnreadByRoom(userId) {
   }
   return { perRoom: map, total }
 }
-

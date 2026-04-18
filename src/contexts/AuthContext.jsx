@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getServerBaseUrl } from '@/config/serverUrl'
+import { disconnectSocket } from '@/services/socket'
 import { AuthContext } from './auth-context'
 const TOKEN_KEY = 'connectly_jwt'
 
@@ -76,6 +77,7 @@ export function AuthProvider({ children }) {
   }, [token])
 
   const logout = useCallback(() => {
+    disconnectSocket()
     localStorage.removeItem(TOKEN_KEY)
     setToken('')
     setUser(null)

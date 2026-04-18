@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Bell, FileText, LayoutGrid, MessageSquare, Pencil, Plus, Upload, UserPlus, Users, FolderOpen, Sparkles } from 'lucide-react'
 import Skeleton from '../components/ui/Skeleton'
 import { fetchDashboard } from '../services/chatService'
+import { connectSocket } from '../services/socket'
 
 const cardBase = 'rounded-2xl border border-border/80 bg-card p-4 shadow-sm transition duration-200'
 const iconWrap = 'grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary'
@@ -42,6 +43,7 @@ function DashboardPage() {
   const [data, setData] = useState({
     rooms: [],
     activeUsers: [],
+    onlineInWorkspace: 0,
     sharedFilesCount: 0,
     unreadMessagesTotal: 0,
     activity: [],
@@ -49,13 +51,35 @@ function DashboardPage() {
   })
 
   useEffect(() => {
-    fetchDashboard().then((dash) => {
-      setData(dash)
-      setLoading(false)
-    })
+    let cancelled = false
+    const apply = (dash) => {
+      if (!cancelled) {
+        setData(dash)
+        setLoading(false)
+      }
+    }
+    const load = () => {
+      fetchDashboard().then(apply)
+    }
+    load()
+
+    const socket = connectSocket()
+    const onConnect = () => load()
+    socket.on('connect', onConnect)
+    const interval = window.setInterval(load, 20000)
+    const onFocus = () => load()
+    window.addEventListener('focus', onFocus)
+
+    return () => {
+      cancelled = true
+      socket.off('connect', onConnect)
+      window.clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+    }
   }, [])
 
-  const onlineCount = data.activeUsers.length
+  /** Distinct people with an open session in at least one room you can see (not workspace account rows). */
+  const onlineCount = Number(data.onlineInWorkspace) || 0
   const todayActivity = data.activity.slice(0, 6)
   const yesterdayActivity = data.activity.slice(6, 10)
 

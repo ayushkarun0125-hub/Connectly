@@ -19,7 +19,9 @@ import { getDb, initDatabase } from './utils/db.js'
 import { seedDefaultAdmin, seedDefaultModerator } from './utils/seedAdmin.js'
 import {
   PROTECTED_ROOM_IDS,
+  WORKSPACE_LOBBY_ROOM_ID,
   ensurePersonalRoomForUser,
+  ensureWorkspaceLobbyForAllUsers,
   createRoomWithInvite,
   deleteRoomCascade,
   grantRoomAccess,
@@ -232,6 +234,7 @@ registerSocketHandlers(io)
 
 await ensureDataFiles()
 await initDatabase()
+await ensureWorkspaceLobbyForAllUsers()
 await seedDefaultAdmin()
 await seedDefaultModerator()
 
@@ -243,7 +246,8 @@ function isPortFree(portToCheck) {
       .once('listening', () => {
         tester.close(() => resolve(true))
       })
-      .listen(portToCheck)
+      // Match `server.listen(..., '0.0.0.0')` so IPv4 bind conflicts are detected reliably on Windows.
+      .listen(portToCheck, '0.0.0.0')
   })
 }
 
@@ -372,6 +376,10 @@ app.post('/api/auth/login', async (req, res) => {
       res.status(403).json({ error: 'Account is suspended or banned' })
       return
     }
+    const staff = row.role === 'admin' || row.role === 'moderator'
+    if (staff || Number(row.profileCompleted ?? 0) === 1) {
+      await grantRoomAccess({ roomId: WORKSPACE_LOBBY_ROOM_ID, userId: row.id, source: 'workspace' })
+    }
     const token = signToken({ sub: row.id, role: row.role })
     res.json({
       token,
@@ -451,6 +459,7 @@ app.patch('/api/auth/profile', async (req, res) => {
       user.id,
     )
     const personalRoomId = await ensurePersonalRoomForUser({ userId: user.id, displayName })
+    await grantRoomAccess({ roomId: WORKSPACE_LOBBY_ROOM_ID, userId: user.id, source: 'workspace' })
     const next = {
       ...user,
       displayName,
@@ -496,12 +505,16 @@ app.get('/api/workspace/dashboard', async (req, res) => {
     }
     const db = getDb()
     const staff = user.role === 'admin' || user.role === 'moderator'
+    const distinctLiveSql = `(
+            SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(COALESCE(rm.account_user_id, '')), ''), rm.socket_id))
+            FROM room_members rm WHERE rm.room_id = r.id
+          )`
     const roomRows = staff
       ? await db.all(`
           SELECT r.id, r.name,
             (SELECT m.content FROM messages m WHERE m.room_id = r.id ORDER BY datetime(m.timestamp) DESC LIMIT 1) AS lastMsg,
             (SELECT COUNT(DISTINCT m.user_id) FROM messages m WHERE m.room_id = r.id) AS chatterCount,
-            (SELECT COUNT(*) FROM room_members rm WHERE rm.room_id = r.id) AS liveCount
+            ${distinctLiveSql} AS liveCount
           FROM rooms r
           WHERE r.archived = 0
           ORDER BY r.created_at ASC
@@ -510,14 +523,28 @@ app.get('/api/workspace/dashboard', async (req, res) => {
           `SELECT r.id, r.name,
             (SELECT m.content FROM messages m WHERE m.room_id = r.id ORDER BY datetime(m.timestamp) DESC LIMIT 1) AS lastMsg,
             (SELECT COUNT(DISTINCT m.user_id) FROM messages m WHERE m.room_id = r.id) AS chatterCount,
-            (SELECT COUNT(*) FROM room_members rm WHERE rm.room_id = r.id) AS liveCount
+            ${distinctLiveSql} AS liveCount
            FROM rooms r
            JOIN room_access ra ON ra.room_id = r.id
            WHERE r.archived = 0 AND ra.user_id = ?
            ORDER BY r.created_at ASC`,
           user.id,
         )
-    const unreadState = await getUnreadByRoom(user.id)
+    const unreadState = await getUnreadByRoom(user.id, staff)
+    const onlineRow = staff
+      ? await db.get(`
+          SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(COALESCE(account_user_id, '')), ''), socket_id)) AS n
+          FROM room_members
+        `)
+      : await db.get(
+          `
+          SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(COALESCE(rm.account_user_id, '')), ''), rm.socket_id)) AS n
+          FROM room_members rm
+          INNER JOIN room_access ra ON ra.room_id = rm.room_id AND ra.user_id = ?
+        `,
+          user.id,
+        )
+    const onlineInWorkspace = Number(onlineRow?.n) || 0
     const rooms = roomRows.map((row) => {
       const last = row.lastMsg ? String(row.lastMsg).trim() : ''
       const lastMessage = last ? (last.length > 100 ? `${last.slice(0, 97)}…` : last) : 'No messages yet'
@@ -623,6 +650,7 @@ app.get('/api/workspace/dashboard', async (req, res) => {
     res.json({
       rooms,
       activeUsers,
+      onlineInWorkspace,
       sharedFilesCount,
       unreadMessagesTotal: unreadState.total,
       recentFiles,
@@ -641,7 +669,8 @@ app.get('/api/unread', async (req, res) => {
       res.status(401).json({ error: 'Sign in required' })
       return
     }
-    const unread = await getUnreadByRoom(user.id)
+    const staffUnread = user.role === 'admin' || user.role === 'moderator'
+    const unread = await getUnreadByRoom(user.id, staffUnread)
     res.json(unread)
   } catch (err) {
     console.error('GET /api/unread', err)

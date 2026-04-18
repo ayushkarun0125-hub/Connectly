@@ -7,7 +7,7 @@ import TypingIndicator from '../components/TypingIndicator'
 import UserPresencePanel from '../components/UserPresencePanel'
 import CreateRoomModal from '../components/CreateRoomModal'
 import Modal from '../components/ui/Modal'
-import { connectSocket, disconnectSocket } from '../services/socket'
+import { connectSocket } from '../services/socket'
 import { fetchRoomData } from '../services/chatService'
 import { addRoomPin, fetchRoomPins, removeRoomPin } from '../services/pinService'
 import {
@@ -120,6 +120,13 @@ function ChatPage() {
   const location = useLocation()
   const { user } = useAuth()
   const role = user?.role ?? 'user'
+  const staffPortal = role === 'admin' || role === 'moderator'
+  /** AppLayout keeps these joined for workspace presence — do not leave on chat unmount. */
+  const presenceShellRoomIds = useMemo(() => {
+    const ids = new Set(['room_design'])
+    if (user?.personalRoomId) ids.add(user.personalRoomId)
+    return ids
+  }, [user?.personalRoomId])
   const { roomId: routeRoomId } = useParams()
   const roomId = routeRoomId || user?.personalRoomId || 'room_design'
   const defaultRoomIds = useMemo(() => {
@@ -330,7 +337,9 @@ function ChatPage() {
     }
 
     return () => {
-      socket.emit('leave-room', { roomId })
+      if (!presenceShellRoomIds.has(roomId)) {
+        socket.emit('leave-room', { roomId })
+      }
       socket.off('connect', handleConnect)
       socket.off('connect_error', handleConnectError)
       socket.off('room-history', handleRoomHistory)
@@ -342,9 +351,8 @@ function ChatPage() {
       socket.off('user-stopped-typing', handleUserStoppedTyping)
       socket.off('file-shared', handleNewMessage)
       socket.off('message-deleted', handleMessageDeleted)
-      disconnectSocket()
     }
-  }, [roomId, username, pushToast])
+  }, [roomId, username, pushToast, presenceShellRoomIds])
 
   function sendMessage() {
     const content = messageInput.trim()
