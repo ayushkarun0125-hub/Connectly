@@ -1,6 +1,6 @@
 # REST API reference
 
-Single index for HTTP endpoints. **Source of truth:** route handlers in **`server/index.js`** (main API) and **`server/routes/adminApi.js`** (admin/moderator). When code and this doc disagree, trust the server files.
+Single index for HTTP endpoints. **Source of truth:** route handlers in **`server/bootstrapServer.js`** (main API; **`server/index.js`** may re-export or bootstrap) and **`server/routes/adminApi.js`** (admin/moderator). When code and this doc disagree, trust the server files.
 
 Base URL is the API origin (for example `http://localhost:3001`). JSON bodies use **`Content-Type: application/json`** unless noted.
 
@@ -52,7 +52,7 @@ Signup/login errors include **400** (validation), **401** (login), **403** (susp
 
 | Method | Path | Auth | Notes |
 | :--- | :--- | :--- | :--- |
-| GET | `/api/workspace/dashboard` | JWT | **200** `{ rooms, activeUsers, sharedFilesCount, unreadMessagesTotal, recentFiles, activity }` — staff see all rooms/users; members see scoped data |
+| GET | `/api/workspace/dashboard` | JWT | **200** `{ rooms, activeUsers, onlineInWorkspace, sharedFilesCount, unreadMessagesTotal, recentFiles, activity }` — staff see all rooms/users; members see scoped data. **`onlineInWorkspace`** is a distinct count of live **`room_members`** (by account or socket) in rooms the viewer may access. Each **`rooms[]`** item includes **`onlineInRoom`**, **`members`**, **`unread`**, **`lastMessage`**. |
 | GET | `/api/unread` | JWT | **200** unread object from `unreadService` |
 | POST | `/api/rooms/:roomId/read` | JWT | Room access required. **200** read state |
 | POST | `/api/reports` | JWT | Body: `type` (`message` \| `file` \| `user`), `reason`, optional `roomId`, `note`, `messageId` / `fileId` / `targetUserId` per type. **201** report object; **400** validation / duplicate open report |

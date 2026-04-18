@@ -36,13 +36,16 @@ socket.on("connect", () => {
 ### `disconnect`
 **Direction:** C → S (automatic on tab close / network drop)
 
-Fired automatically when a client disconnects. The server uses this to clean up room presence.
+Fired automatically when a client disconnects. The server removes **`room_members`** rows for **every** room that socket had joined, emits **`user-left`** per room, and refreshes **`room-users`** where applicable (see **`getUserRooms`** / **`leaveRoom`** in **`server/controllers/roomController.js`**).
 
 ```javascript
-// Server
-socket.on("disconnect", () => {
-  // Remove user from all rooms, broadcast user-left
-});
+// Server (conceptual)
+socket.on("disconnect", async () => {
+  for (const roomId of getUserRooms(socket.id)) {
+    await leaveRoom({ socketId: socket.id, roomId })
+    // emit user-left + room-users to roomId
+  }
+})
 ```
 
 ---
@@ -57,10 +60,12 @@ Client requests to join a room. Server adds the socket to the Socket.io room, lo
 **Payload:**
 ```json
 {
-  "roomId": "room_general",
+  "roomId": "room_design",
   "username": "Dhruv"
 }
 ```
+
+**Notes:** Requires a valid JWT in the handshake (`auth.token`) so the server attaches **`socket.accountUserId`**; otherwise authenticated joins are denied. The client **`AppLayout`** emits **`join-room`** for **`room_design`** and the user’s personal room on connect so REST-backed workspace stats stay aligned with live presence.
 
 **Server response — emits back to this client only:**
 - `room-history` with past messages

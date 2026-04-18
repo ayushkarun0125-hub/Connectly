@@ -78,6 +78,7 @@ Beyond basic chat, it includes **direct messages**, a **collaborative whiteboard
 ### Presence and typing
 
 - Active users per room, join/leave, typing indicators (via Socket.io).
+- **Workspace overview** (`GET /api/workspace/dashboard`) reports **`onlineInWorkspace`** and per-room **online** counts from **`room_members`** scoped to rooms you can access. Everyone gets **`room_access`** to the shared **Design** lobby (`room_design`); while signed in, **`AppLayout`** joins that lobby (and your personal room) so phones on the dashboard still count as online without opening a chat tab first.
 
 ### Files and pins
 
@@ -172,7 +173,8 @@ repo root/
 │   ├── config/              # API base URL resolution (LAN-aware)
 │   └── …
 ├── server/
-│   ├── index.js             # Express app, auth routes, HTTP + Socket.io listen
+│   ├── index.js             # Entry: LAN hints, listen, EADDRINUSE handling
+│   ├── bootstrapServer.js   # Express + Socket.io routes and middleware
 │   ├── sockets/             # Socket.io handlers
 │   ├── controllers/         # Room, file, whiteboard logic
 │   ├── utils/               # DB init, file I/O

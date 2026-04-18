@@ -1,0 +1,28 @@
+{
+  "uploadLimitMB": 8,
+  "allowedFileTypes": "images, pdf, documents",
+  "roomRules": "Be respectful. No illegal content.",
+  "moderationDefaultAction": "flag",
+  "notifyAdminsOnReport": true,
+  "maintenanceMode": false,
+  "permissions": {
+    "user": {
+      "createRoom": true,
+      "uploadFiles": true,
+      "directMessage": true,
+      "whiteboard": true
+    },
+    "moderator": {
+      "moderateContent": true,
+      "suspendUsers": false,
+      "deleteRooms": false,
+      "viewAnalytics": true
+    },
+    "admin": {
+      "fullAccess": true,
+      "deleteRooms": true,
+      "manageRoles": true,
+      "systemSettings": true
+    }
+  }
+}

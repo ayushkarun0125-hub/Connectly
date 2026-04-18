@@ -39,6 +39,16 @@ Rationale for navigation, layout, and visual patterns—so future contributors d
 
 ---
 
+## Shared lobby for workspace-wide presence (`room_design`)
+
+- On API startup, the server ensures **`room_design`** exists and grants **`room_access`** to it for every **active** account (and again on **login** / **profile complete** for eligible users).
+- **`AppLayout`** keeps the socket joined to **`room_design`** and the user’s **personal room** (when present) for as long as they are signed in.
+- Leaving **Chat** or **Whiteboard** does not **`leave-room`** those shell rooms, so the overview does not “lose” you when you navigate.
+
+**Why:** Dashboard **`onlineInWorkspace`** and per-room counts are derived from **`room_members`** intersected with **`room_access`**. Without a room everyone shares, members would only appear online in private personal rooms others cannot see—counts would look empty. The lobby is the shared visibility surface; personal room membership stays for your own channel.
+
+---
+
 ## Socket + REST split
 
 - **Realtime** presence, messages, typing, whiteboard: **Socket.io** (`src/services/socket.js`).

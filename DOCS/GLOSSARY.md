@@ -7,6 +7,7 @@ Short definitions for terms used across **SOCKET_EVENTS.md**, the chat UI, and a
 - **Room** — A shared channel stored in SQLite (`rooms`). Has an id (for example `room_…`), name, optional invite code, archive flag, and optional `created_by_user_id`. Messages can reference `room_id`. This is the usual “channel” or “space” in the sidebar.
 - **DM conversation** — A **direct message** thread between registered users, stored as a row in `conversations` (typically `kind = 'dm'`) with participants in `conversation_participants`. Messages use **`conversation_id`** (and usually a null `room_id`), not the same shape as a public room id.
 - **Personal room / “My space”** — A per-user room derived from `users.personal_room_id`, created when a user completes onboarding. Used like a private workspace room; see **`room_access`** for grants.
+- **Design / workspace lobby (`room_design`)** — Built-in shared channel; all **active** users receive **`room_access`** with source **`workspace`** (on server boot and on login / profile completion). Used for team-wide chat and as the **common presence surface** so the workspace dashboard can count distinct online users across the org.
 - **Socket.io room** — A server-side channel used to target emits (for example everyone subscribed to a `roomId`). Not the same as a Connectly **Room** row, though names often align when clients join a chat room.
 
 ## Pins

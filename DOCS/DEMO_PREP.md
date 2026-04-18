@@ -1,6 +1,6 @@
 # Connectly — Demo & grading prep
 
-Official Clerk + React quickstart (auth): [Clerk React getting started](https://clerk.com/docs/react/getting-started/quickstart)
+> **This repository (Team 18)** uses **JWT + bcrypt** auth (`/api/auth/login`, `connectly_jwt` in `localStorage`) and **Socket.io `auth.token`** — not Clerk. Treat Clerk references below as optional template notes unless you add Clerk later.
 
 ---
 
@@ -17,7 +17,7 @@ Official Clerk + React quickstart (auth): [Clerk React getting started](https://
 | **Large file upload** | Base64 in JSON can be slow; very large files may timeout (course demo: use small images). |
 | **Admin expectations** | Kick/Ban are **disabled** + labeled prototype — saying they “work” loses credibility. |
 | **Private messaging** | Not implemented — do not demo as live. |
-| **Wi‑Fi blocks WebSockets** | Rare; app uses `transports: ['websocket']` only — no polling fallback. |
+| **Wi‑Fi blocks WebSockets** | Uncommon; the client uses **`transports: ['polling', 'websocket']`** so polling can upgrade when WebSockets are blocked. |
 
 ---
 
@@ -57,6 +57,7 @@ Official Clerk + React quickstart (auth): [Clerk React getting started](https://
 
 ### Reliable Socket.io across clients
 - Same `roomId`, both clients **joined** (`join-room` after `connect`).
+- **Overview / “online users”:** signed-in clients should auto-join **`room_design`** and the personal room from **`AppLayout`**; restart the **API** once after pulling so lobby **`room_access`** is seeded. Dashboard refetches periodically—wait a few seconds or refocus the window if counts look stale.
 - Same server instance; avoid starting **two servers** on different ports by mistake.
 - After changing `.env`, **restart Vite** (`npm run dev`).
 

@@ -39,7 +39,7 @@ Applies when the user is **not** redirected by **`AdminPortalGate`**.
 
 | Flow | Steps |
 | :--- | :--- |
-| **Enter app** | `/app` → **Dashboard** (`AppLayout`: left **AppSidebar**, top **AppTopbar**, main content). |
+| **Enter app** | `/app` → **Dashboard** (`AppLayout`: left **AppSidebar**, top **AppTopbar**, main content). While signed in, **`AppLayout`** connects Socket.io and **`join-room`** on the shared **Design** lobby (`room_design`) and the member’s **personal room** so workspace stats and “online” counts stay accurate even on the overview without opening chat. |
 | **Browse rooms** | Sidebar or **`/app/room-directory`** → pick room or create room (modal) → navigate **`/app/rooms/:roomId`**. |
 | **Join via invite** | **`/app/rooms/join`** (Join room page) → enter code → resolve invite → access granted → open room. |
 | **Chat in a room** | **`/app/rooms/:roomId`** → **ChatPage**: join socket room, send messages, see presence/typing, upload files, open pins as designed. |

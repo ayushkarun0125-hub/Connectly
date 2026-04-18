@@ -26,6 +26,18 @@ Add new entries at the **top** of the file under today's date. Keep it short —
 
 ---
 
+## 2026-04-17
+
+- [feat] Workspace lobby **`room_design`**: all active users receive **`room_access`** on server boot and on login / profile complete; **`ensureWorkspaceLobbyForAllUsers()`** keeps the room row present (`server/controllers/roomController.js`, `server/bootstrapServer.js`).
+- [feat] **`AppLayout`** joins **`room_design`** and the user’s **personal room** over Socket.io so dashboard and overview counts see signed-in clients without opening chat first (`src/layouts/AppLayout.jsx`).
+- [fix] Socket **disconnect** removes **`room_members`** for **every** room the client had joined (multi-room tracking); **`leave-room`** updates per-room set correctly (`server/controllers/roomController.js`, `server/sockets/registerSocketHandlers.js`).
+- [fix] **Chat / whiteboard** unmount skips **`leave-room`** for shell presence rooms (**`room_design`** + personal) so overview presence is not dropped when navigating away (`src/pages/ChatPage.jsx`, `src/pages/WhiteboardPage.jsx`).
+- [feat] **Dashboard** refetches workspace stats on interval, window focus, and socket reconnect; API includes **`onlineInWorkspace`** and per-room **`onlineInRoom`** (`src/pages/DashboardPage.jsx`, `GET /api/workspace/dashboard`).
+- [fix] **Logout** calls **`disconnectSocket()`** so sessions end cleanly (`src/contexts/AuthContext.jsx`).
+- [docs] README, **API**, **FLOWS**, **UX_DECISIONS**, **GLOSSARY**, **SOCKET_EVENTS**, **DEMO_PREP** aligned with presence and lobby behaviour.
+
+---
+
 ## Day 1 — YYYY-MM-DD
 
 - [chore] Initialized GitHub repo with `main` and `dev` branches (Dhruv)
