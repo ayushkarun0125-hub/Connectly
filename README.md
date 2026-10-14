@@ -14,7 +14,7 @@
 
 <p align="center">
   <a href="."><img src="https://img.shields.io/badge/Course-CSCI%202020U-0ea5e9?style=for-the-badge" alt="Course badge" /></a>
-  <a href="."><img src="https://img.shields.io/badge/Group-53%20%7C%20Team-18-6366f1?style=for-the-badge" alt="Group / team badge" /></a>
+  <a href="."><img src="https://img.shields.io/badge/Group%2053-Team%2018-6366f1?style=for-the-badge" alt="Group / team badge" /></a>
   <a href="."><img src="https://img.shields.io/badge/Real--time-Socket.io-010101?style=for-the-badge&logo=socket.io&logoColor=white" alt="Socket.io badge" /></a>
 </p>
 
@@ -28,14 +28,18 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/search?q=w26-csci2020u-finalproject-w26-team-18&type=repositories"><img src="https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github&logoColor=white" alt="Find repository on GitHub" /></a>
+  <img src="https://img.shields.io/github/last-commit/ayushkarun0125-hub/Connectly?style=flat-square&color=38bdf8" alt="Last commit" />
+  <img src="https://img.shields.io/github/languages/top/ayushkarun0125-hub/Connectly?style=flat-square&color=6366f1" alt="Top language" />
+  <img src="https://img.shields.io/badge/tests-Vitest%20%2B%20Supertest-6e9f18?style=flat-square&logo=vitest&logoColor=white" alt="Tests: Vitest + Supertest" />
 </p>
-
-<p align="center"><sub>After you publish the repo, replace the link above and optionally add live badges: <code>https://img.shields.io/github/stars/&lt;OWNER&gt;/&lt;REPO&gt;</code> (stars, contributors, last commit).</sub></p>
 
 # Connectly — Real-Time Multi-Room Communication Platform
 
 > A distributed real-time system supporting multiple concurrent clients with synchronized shared state, collaborative tooling, and persistent data.
+
+<p align="center">
+  <img src="assets/github-readme/landing.png" width="92%" alt="Connectly landing page: hero section with a live product preview of the chat stream and presence panel" />
+</p>
 
 ---
 ## Project Charter
@@ -105,23 +109,19 @@ Beyond basic chat, it includes **direct messages**, a **collaborative whiteboard
 
 ---
 
-## Showcase *(GIF layout)*
-
-<p align="center">
-  <strong>Drop screen recordings into <code>DOCS/readme-gifs/</code> and swap the <code>src</code> below, or keep the animated glass placeholders.</strong>
-</p>
+## Showcase
 
 <table align="center">
   <tr>
     <td width="50%" align="center">
       <p><strong>Chat &amp; presence</strong></p>
-      <img src="assets/github-readme/panel-chat.svg" width="95%" alt="Animated placeholder — replace with chat-demo.gif" />
-      <p><sub>GIF: <code>DOCS/readme-gifs/chat-demo.gif</code></sub></p>
+      <img src="assets/github-readme/panel-chat.svg" width="95%" alt="Animated illustration of the chat and presence panel" />
+      <p><sub>Room messages, typing indicators and online counts over Socket.io</sub></p>
     </td>
     <td width="50%" align="center">
       <p><strong>Whiteboard sync</strong></p>
-      <img src="assets/github-readme/panel-whiteboard.svg" width="95%" alt="Animated placeholder — replace with whiteboard-demo.gif" />
-      <p><sub>GIF: <code>DOCS/readme-gifs/whiteboard-demo.gif</code></sub></p>
+      <img src="assets/github-readme/panel-whiteboard.svg" width="95%" alt="Animated illustration of the shared whiteboard" />
+      <p><sub>Strokes broadcast per room and persisted in SQLite</sub></p>
     </td>
   </tr>
 </table>
@@ -196,8 +196,8 @@ repo root/
 ### 1. Clone and install
 
 ```bash
-git clone <your-repo-url>
-cd w26-csci2020u-finalproject-w26-team-18
+git clone https://github.com/ayushkarun0125-hub/Connectly.git
+cd Connectly
 
 npm install
 cd server && npm install && cd ..
@@ -314,34 +314,4 @@ If the API picks a **different port** (busy port), set **`VITE_SERVER_PORT`** in
 
 ---
 
-## Team work contract
-
-| Item | Agreement |
-| :--- | :--- |
-| **Communication** | Discord |
-| **Meeting schedule** | Every Tuesday after lecture |
-| **Conflict resolution** | If a member does not contribute to assigned tasks, the team will contact the instructor immediately. All members are responsible for enabling others to execute their work (for example pushing required code and updates on time). |
-
----
-
-## Work division and contribution report
-
-> **Note:** The *Actual Contribution* column must be updated at final submission.
-
-| Task / Module | Assigned Member | Actual Contribution (Final) |
-| :--- | :--- | :--- |
-| **Multi-threaded Server** | Dhruv Thakar | *[To be completed at submission]* |
-| **Socket Networking** | Ayush K. | *[To be completed at submission]* |
-| **GUI Implementation** | Aaryan Kulkarni | *[To be completed at submission]* |
-| **Persistence (File I/O)** | Dhruv Thakar | *[To be completed at submission]* |
-| **UX / Sound Effects** | Aaryan Kulkarni | *[To be completed at submission]* |
-| **Documentation / README** | Ayush K. | *[To be completed at submission]* |
-
----
-
-## Final contribution status
-
-> Tag one at final submission. Graders will use the *Actual Contribution* column above to apply uneven grades if applicable.
-
-- [ ] **(1) EVEN CONTRIBUTION** — All members met expectations from the original charter.
-- [ ] **(2) UNEVEN CONTRIBUTION** — One or more members did not meet expectations.
+The full team work contract and the final contribution report (signed off as **even contribution**) are in [**PROJECT_CHARTER.md**](PROJECT_CHARTER.md).
